@@ -29,7 +29,7 @@ def main():
         model = torch.load(CONFIG['PRETRAINED_PATH'])
         print('Load weights form {}'.format(pretrained_path))
     else:
-        model = MyModel(models.resnet, CONFIG['BOTTLENECK_SIZE'], CONFIG['NUM_CLASS'], True).cuda()
+        model = MyModel(models.resnet50, CONFIG['BOTTLENECK_SIZE'], CONFIG['NUM_CLASS'], True).cuda()
         # model = MyModel(models.inception_v3, 2048, 5, True, aux_logits=False).cuda()
         # model = MyEfficientNet('5', CONFIG['BOTTLENECK_SIZE'], CONFIG['NUM_CLASS'], pretrained=True).cuda()
 

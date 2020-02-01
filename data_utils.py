@@ -5,7 +5,7 @@ import random
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 from torchvision import transforms, datasets
-from config import DARA_CONFIG
+from config import DATA_CONFIG
 
 
 def generate_data(data_path, input_size):
@@ -13,7 +13,7 @@ def generate_data(data_path, input_size):
     test_path = os.path.join(data_path, 'test')
     val_path = os.path.join(data_path, 'val')
 
-    data_aug = DARA_CONFIG['DATA_AUGMENTATION']
+    data_aug = DATA_CONFIG['DATA_AUGMENTATION']
     train_preprocess = transforms.Compose([
         transforms.RandomResizedCrop(
             size=(input_size, input_size),
@@ -29,13 +29,13 @@ def generate_data(data_path, input_size):
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(DARA_CONFIG['MEAN'], DARA_CONFIG['STD']),
+        transforms.Normalize(DATA_CONFIG['MEAN'], DATA_CONFIG['STD']),
     ])
 
     test_preprocess = transforms.Compose([
         transforms.Resize((input_size, input_size)),
         transforms.ToTensor(),
-        transforms.Normalize(DARA_CONFIG['MEAN'], DARA_CONFIG['STD']),
+        transforms.Normalize(DATA_CONFIG['MEAN'], DATA_CONFIG['STD']),
     ])
 
     train_dataset = datasets.ImageFolder(train_path, train_preprocess)
@@ -52,8 +52,8 @@ class ScheduledWeightedSampler(Sampler):
         self.replacement = replacement
 
         self.epoch = 0
-        self.decay_rate = DARA_CONFIG['DECAY_RATE']
-        self.w0 = torch.as_tensor(DARA_CONFIG['INITIAL_SAMPLING_WEIGHTS'], dtype=torch.double)
+        self.decay_rate = DATA_CONFIG['DECAY_RATE']
+        self.w0 = torch.as_tensor(DATA_CONFIG['INITIAL_SAMPLING_WEIGHTS'], dtype=torch.double)
         self.wf = torch.as_tensor(DATA_CONFIG['FINAL_SAMPLING_WEIGHTS'], dtype=torch.double)
         self.train_sample_weight = torch.zeros(len(train_targets), dtype=torch.double)
 

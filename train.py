@@ -147,6 +147,7 @@ def evaluate(model_path, test_dataset):
 
     trained_model = torch.load(model_path).cuda()
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    print('Running on Test set...')
     test_acc = _eval(trained_model, test_loader, c_matrix)
     print('========================================')
     print('Finished! test acc: {}'.format(test_acc))
