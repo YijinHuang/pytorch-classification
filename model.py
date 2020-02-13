@@ -4,14 +4,45 @@ import torch.nn.functional as F
 import torchvision.models as models
 from efficientnet_pytorch import EfficientNet
 
+from config import NET_CONFIG
+
+
+def generate_model(network, num_classes, checkpoint, pretrained):
+    if checkpoint:
+        model = torch.load(checkpoint)
+        print('Load weights form {}'.format(checkpoint))
+    else:
+        if network not in NET_CONFIG.keys():
+            raise Exception('NETWORK name should be one of NET_CONFIG keys in config.py.')
+        net_config = NET_CONFIG[network]
+
+        if 'efficientnet' in network:
+            if pretrained:
+                model = EfficientNet.from_pretrained(network, num_classes=num_classes).cuda()
+            else:
+                model = EfficientNet.from_name(network, num_classes=num_classes).cuda()
+        else:
+            model = MyModel(
+                net_config['MODEL'],
+                net_config['BOTTLENECK_SIZE'],
+                num_classes,
+                pretrained,
+                net_config['DROPOUT'],
+                **net_config['OPTIONAL']
+            ).cuda()
+
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
+
+    return model
 
 class MyModel(nn.Module):
-    def __init__(self, backbone, bottleneck_size, num_classes, pretrained=False, **kwargs):
+    def __init__(self, backbone, bottleneck_size, num_classes, pretrained=False, dropout=0.2, **kwargs):
         super(MyModel, self).__init__()
 
         self.net = backbone(pretrained=pretrained, num_classes=1000, **kwargs)
         self.net.fc = nn.Sequential(
-            nn.Dropout(0.2),
+            nn.Dropout(dropout),
             nn.Linear(bottleneck_size, num_classes)
         )
 
@@ -26,25 +57,6 @@ class AngularModel(nn.Module):
 
         self.net = backbone(pretrained=pretrained, num_classes=1000, **kwargs)
         self.net.fc = AngularFCLayer(bottleneck_size, num_classes)
-
-    def forward(self, x):
-        pred = self.net(x)
-        return pred
-
-
-class MyEfficientNet(nn.Module):
-    def __init__(self, net_size, bottleneck_size, num_classes, pretrained=False):
-        super(MyEfficientNet, self).__init__()
-
-        if pretrained:
-            self.net = EfficientNet.from_pretrained('efficientnet-b{}'.format(net_size))
-        else:
-            self.net = EfficientNet.from_name('efficientnet-b{}'.format(net_size))
-
-        self.net._fc = nn.Sequential(
-            nn.Dropout(0.2),
-            nn.Linear(bottleneck_size, num_classes)
-        )
 
     def forward(self, x):
         pred = self.net(x)

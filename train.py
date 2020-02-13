@@ -8,29 +8,28 @@ from torch.utils.data import DataLoader
 
 from data_utils import ScheduledWeightedSampler
 from metrics import accuracy, quadratic_weighted_kappa
+from config import TRAIN_CONFIG
 
 
-def train(
-    model,
-    train_dataset,
-    val_dataset,
-    epochs,
-    learning_rate,
-    batch_size,
-    save_path
-):
+def train(model, train_dataset, val_dataset, save_path):
+    epochs = TRAIN_CONFIG['EPOCHS']
+    batch_size = TRAIN_CONFIG['BATCH_SIZE']
+    num_workers = TRAIN_CONFIG['NUM_WORKERS']
+    warmup_epoch = TRAIN_CONFIG['WARMUP_EPOCH']
+    weight_decay = TRAIN_CONFIG['WEIGHT_DECAY']
+    learning_rate = TRAIN_CONFIG['LEARNING_RATE']
+
     # create dataloader
     train_targets = [sampler[1] for sampler in train_dataset.imgs]
     weighted_sampler = ScheduledWeightedSampler(len(train_dataset), train_targets, True)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=weighted_sampler, num_workers=32, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=weighted_sampler, num_workers=num_workers, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     # define loss and optimizier
     cross_entropy = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # learning rate warmup and decay
-    warmup_epoch = 20
     warmup_batch = len(train_loader) * warmup_epoch
     remain_batch = len(train_loader) * (epochs - warmup_epoch)
 
@@ -44,7 +43,6 @@ def train(
         val_loader,
         cross_entropy,
         optimizer,
-        epochs,
         save_path,
         weighted_sampler=weighted_sampler,
         lr_scheduler=lr_scheduler,
@@ -59,21 +57,21 @@ def _train(
     val_loader,
     loss_function,
     optimizer,
-    epochs,
     save_path,
     weighted_sampler=None,
     lr_scheduler=None,
     warmup_scheduler=None
 ):
+    epochs = TRAIN_CONFIG['EPOCHS']
+    num_class = TRAIN_CONFIG['NUM_CLASS']
+    kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
+
     model_dict = model.state_dict()
     trainable_layers = [(tensor, model_dict[tensor].size()) for tensor in model_dict]
     print_msg('Trainable layers: ', ['{}\t{}'.format(k, v) for k, v in trainable_layers])
 
-    # angular loss
-    angular_penalty = AngularPenalty(s=32)
-
     # train
-    max_kappa = 0
+    max_indicator = 0
     record_epochs, accs, losses = [], [], []
     model.train()
     for epoch in range(1, epochs + 1):
@@ -125,13 +123,14 @@ def _train(
             )
 
         # save model
-        c_matrix = np.zeros((5, 5), dtype=int)
+        c_matrix = np.zeros((num_class, num_class), dtype=int)
         acc = _eval(model, val_loader, c_matrix)
         kappa = quadratic_weighted_kappa(c_matrix)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
-        if kappa > max_kappa:
+        indicator = kappa if kappa_prior else acc
+        if indicator > max_indicator:
             torch.save(model, save_path)
-            max_kappa = kappa
+            max_indicator = indicator
             print_msg('Model save at {}'.format(save_path))
 
         # record
@@ -143,12 +142,16 @@ def _train(
 
 
 def evaluate(model_path, test_dataset):
-    c_matrix = np.zeros((5, 5), dtype=int)
+    num_class = TRAIN_CONFIG['NUM_CLASS']
+    batch_size = TRAIN_CONFIG['BATCH_SIZE']
 
     trained_model = torch.load(model_path).cuda()
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
     print('Running on Test set...')
+    c_matrix = np.zeros((num_class, num_class), dtype=int)
     test_acc = _eval(trained_model, test_loader, c_matrix)
+
     print('========================================')
     print('Finished! test acc: {}'.format(test_acc))
     print('Confusion Matrix:')
@@ -161,10 +164,9 @@ def _eval(model, dataloader, c_matrix=None):
     model.eval()
     torch.set_grad_enabled(False)
 
-    correct = 0
     total = 0
-    from tqdm import tqdm
-    for step, test_data in enumerate(dataloader):
+    correct = 0
+    for test_data in dataloader:
         X, y = test_data
         X, y = X.cuda(), y.long().cuda()
 
