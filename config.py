@@ -8,14 +8,14 @@ BASE_CONFIG = {
     'RECORD_PATH': 'path/to/save/log',
     'PRETRAINED': True,
     'CHECKPOINT': None,
-    'NUM_CLASS': 5,
+    'NUM_CLASSES': 5,
 }
 
 DATA_CONFIG = {
     'MEAN': (0.485, 0.456, 0.406),
     'STD': (0.229, 0.224, 0.225),
-    'INITIAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASS'],  # make data sampling balance
-    'FINAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASS'],
+    'INITIAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],  # make data sampling balance
+    'FINAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],
     'DECAY_RATE': 1.0,
     'DATA_AUGMENTATION': {
         'scale': (1 / 1.15, 1.15),
@@ -34,7 +34,7 @@ TRAIN_CONFIG = {
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy
     'WARMUP_EPOCH': 20,
     'NUM_WORKERS': 32,
-    'NUM_CLASS': BASE_CONFIG['NUM_CLASS']
+    'NUM_CLASS': BASE_CONFIG['NUM_CLASSES']
 }
 
 # you can add any networks in torchvision.models

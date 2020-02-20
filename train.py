@@ -63,7 +63,7 @@ def _train(
     warmup_scheduler=None
 ):
     epochs = TRAIN_CONFIG['EPOCHS']
-    num_class = TRAIN_CONFIG['NUM_CLASS']
+    num_classes = TRAIN_CONFIG['NUM_CLASSES']
     kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
 
     model_dict = model.state_dict()
@@ -123,7 +123,7 @@ def _train(
             )
 
         # save model
-        c_matrix = np.zeros((num_class, num_class), dtype=int)
+        c_matrix = np.zeros((num_classes, num_classes), dtype=int)
         acc = _eval(model, val_loader, c_matrix)
         kappa = quadratic_weighted_kappa(c_matrix)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
@@ -142,14 +142,14 @@ def _train(
 
 
 def evaluate(model_path, test_dataset):
-    num_class = TRAIN_CONFIG['NUM_CLASS']
+    num_classes = TRAIN_CONFIG['NUM_CLASSES']
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
 
     trained_model = torch.load(model_path).cuda()
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     print('Running on Test set...')
-    c_matrix = np.zeros((num_class, num_class), dtype=int)
+    c_matrix = np.zeros((num_classes, num_classes), dtype=int)
     test_acc = _eval(trained_model, test_loader, c_matrix)
 
     print('========================================')
