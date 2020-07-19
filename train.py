@@ -144,9 +144,10 @@ def _train(
 def evaluate(model_path, test_dataset):
     num_classes = TRAIN_CONFIG['NUM_CLASSES']
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
+    num_workers = TRAIN_CONFIG['NUM_WORKERS']
 
     trained_model = torch.load(model_path).cuda()
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     print('Running on Test set...')
     c_matrix = np.zeros((num_classes, num_classes), dtype=int)

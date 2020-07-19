@@ -2,7 +2,7 @@ import torchvision.models as models
 
 
 BASE_CONFIG = {
-    'NETWORK': 'inception_v3',  # shoud be name in NET_CONFIG
+    'NETWORK': 'resnet50',  # shoud be name in NET_CONFIG
     'DATA_PATH': 'path/to/your/dataset',
     'SAVE_PATH': 'path/to/save/model',
     'RECORD_PATH': 'path/to/save/log',
@@ -27,14 +27,14 @@ DATA_CONFIG = {
 }
 
 TRAIN_CONFIG = {
-    'EPOCHS': 10,
+    'EPOCHS': 50,
     'BATCH_SIZE': 128,
     'LEARNING_RATE': 0.0001,
     'WEIGHT_DECAY': 0.0005,
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy
-    'WARMUP_EPOCH': 20,
+    'WARMUP_EPOCH': 5,
     'NUM_WORKERS': 32,
-    'NUM_CLASS': BASE_CONFIG['NUM_CLASSES']
+    'NUM_CLASSES': BASE_CONFIG['NUM_CLASSES']
 }
 
 # you can add any networks in torchvision.models
@@ -43,21 +43,21 @@ NET_CONFIG = {
         'MODEL': models.resnet50,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.2,
+        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'resnet101': {
         'MODEL': models.resnet101,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.2,
+        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'inception_v3': {
         'MODEL': models.inception_v3,
         'INPUT_SIZE': 299,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.2,
+        'DROPOUT': 0.5,
         'OPTIONAL': {
             'aux_logits': False
         },
