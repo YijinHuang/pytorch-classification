@@ -5,6 +5,7 @@ from resnest import torch as resnest
 BASE_CONFIG = {
     'NETWORK': 'resnext101_32x8d',  # shoud be name in NET_CONFIG
     'DATA_PATH': 'path/to/your/dataset',
+    'DATA_INDEX': None,  # if not None, using a dict with image names to build dataset else using folder structure of DATA_PATH to build.
     'SAVE_PATH': 'path/to/save/model',
     'RECORD_PATH': 'path/to/save/log',
     'PRETRAINED': True,

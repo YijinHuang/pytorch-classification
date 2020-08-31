@@ -6,7 +6,7 @@ import numpy as np
 
 from model import generate_model
 from train import train, evaluate
-from data_utils import generate_data
+from data_utils import generate_dataset
 from config import BASE_CONFIG, DATA_CONFIG, NET_CONFIG
 
 
@@ -25,9 +25,10 @@ def main():
     )
 
     # load dataset
-    train_dataset, test_dataset, val_dataset = generate_data(
+    train_dataset, test_dataset, val_dataset = generate_dataset(
         BASE_CONFIG['DATA_PATH'],
-        NET_CONFIG[network]['INPUT_SIZE']
+        NET_CONFIG[network]['INPUT_SIZE'],
+        BASE_CONFIG['DATA_INDEX']
     )
 
     # train
