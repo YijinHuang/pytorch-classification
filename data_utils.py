@@ -12,7 +12,7 @@ from torchvision import transforms, datasets
 
 def generate_dataset(data_path, input_size, pkl=None):
     if pkl:
-        return generate_dataset_from_pickle(data_path, input_size, pkl)
+        return generate_dataset_from_pickle(pkl, input_size)
     else:
         return generate_dataset_from_folder(data_path, input_size)
 
@@ -31,15 +31,15 @@ def generate_dataset_from_folder(data_path, input_size):
     return train_dataset, test_dataset, val_dataset
 
 
-def generate_dataset_from_pickle(data_path, input_size, pkl):
+def generate_dataset_from_pickle(pkl, input_size):
     data = pickle.load(open(pkl, 'rb'))
     train_set, test_set, val_set = data['train'], data['test'], data['val']
     
     train_preprocess, test_preprocess = data_augmentation(input_size)
 
-    train_dataset = DatasetFromDict(data_path, train_set, train_preprocess)
-    test_dataset = DatasetFromDict(data_path, test_set, test_preprocess)
-    val_dataset = DatasetFromDict(data_path, val_set, test_preprocess)
+    train_dataset = DatasetFromDict(train_set, train_preprocess)
+    test_dataset = DatasetFromDict(test_set, test_preprocess)
+    val_dataset = DatasetFromDict(val_set, test_preprocess)
 
     return train_dataset, test_dataset, val_dataset
 
@@ -73,9 +73,8 @@ def data_augmentation(input_size):
 
 
 class DatasetFromDict(Dataset):
-    def __init__(self, root, imgs, transform=None):
+    def __init__(self, imgs, transform=None):
         super(Dataset, self).__init__()
-        self.root = root
         self.imgs = imgs
         self.transform = transform
 
@@ -83,9 +82,8 @@ class DatasetFromDict(Dataset):
         return len(self.imgs)
     
     def __getitem__(self, index):
-        img_name, label = self.imgs[index]
-        path = os.path.join(self.root, str(label), img_name)
-        img = self.pil_loader(path)
+        img_path, label = self.imgs[index]
+        img = self.pil_loader(img_path)
 
         if self.transform is not None:
             img = self.transform(img)
