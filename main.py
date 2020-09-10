@@ -34,17 +34,21 @@ def main():
     )
 
     # train
+    save_path = BASE_CONFIG['SAVE_PATH']
     logger = SummaryWriter(BASE_CONFIG['RECORD_PATH'])
     train(
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
-        save_path=BASE_CONFIG['SAVE_PATH'],
+        save_path=save_path,
         logger=logger
     )
 
     # test
-    evaluate(BASE_CONFIG['SAVE_PATH'], test_dataset)
+    print('This is the performance of best validation model:')
+    evaluate(os.path.join(save_path, 'best_validation_model.pt'), test_dataset)
+    print('This is the performance of final model:')
+    evaluate(os.path.join(save_path, 'final_model.pt'), test_dataset)
 
 
 if __name__ == '__main__':
