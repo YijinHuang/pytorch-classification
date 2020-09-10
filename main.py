@@ -2,17 +2,21 @@ import os
 import random
 
 import torch
-import pickle
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
 from model import generate_model
 from train import train, evaluate
 from data_utils import generate_dataset
-from config import BASE_CONFIG, DATA_CONFIG, NET_CONFIG
+from config import BASE_CONFIG, NET_CONFIG
 
 
 def main():
+    # reproducibility
+    seed = BASE_CONFIG['RANDOM_SEED']
+    set_random_seed(seed)
+
+    # create folder
     save_dir = BASE_CONFIG['SAVE_PATH']
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -45,14 +49,19 @@ def main():
     )
 
     # test
-    print('This is the performance of best validation model:')
+    print('This is the performance of the best validation model:')
     evaluate(os.path.join(save_path, 'best_validation_model.pt'), test_dataset)
-    print('This is the performance of final model:')
+    print('This is the performance of the final model:')
     evaluate(os.path.join(save_path, 'final_model.pt'), test_dataset)
 
 
-if __name__ == '__main__':
-    seed = 1
+def set_random_seed(seed):
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+
+if __name__ == '__main__':
     main()

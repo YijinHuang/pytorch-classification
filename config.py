@@ -5,26 +5,26 @@ from resnest import torch as resnest
 BASE_CONFIG = {
     'NETWORK': 'resnext101_32x8d',  # shoud be name in NET_CONFIG
     'DATA_PATH': 'path/to/your/dataset',
-    'DATA_INDEX': None,  # if not None, using a dict with image names to build dataset else using folder structure of DATA_PATH to build.
+    'DATA_INDEX': None,  # if not None, using this pickle file to build dataset
     'SAVE_PATH': 'path/to/save/folder',
     'RECORD_PATH': 'path/to/save/log/folder',
     'PRETRAINED': True,
     'CHECKPOINT': None,
     'NUM_CLASSES': 5,
+    'RANDOM_SEED': 0
 }
 
 DATA_CONFIG = {
     'MEAN': (0.485, 0.456, 0.406),
     'STD': (0.229, 0.224, 0.225),
-    'INITIAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],  # make data sampling balance
+    'INITIAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],  # weighted sampling
     'FINAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],
-    'DECAY_RATE': 1,
+    'DECAY_RATE': 1,  # if not 1, sampling weight will decay from initial to final
     'DATA_AUGMENTATION': {
         'scale': (1 / 1.15, 1.15),
         'stretch_ratio': (0.7, 1.3),
         'ratation': (-180, 180),
-        'translation_ratio': (0.2, 0.2),
-        'sigma': 0.5  # ooptional, for color augmentation
+        'translation_ratio': (0.2, 0.2)
     }
 }
 
@@ -33,14 +33,14 @@ TRAIN_CONFIG = {
     'BATCH_SIZE': 48,
     'LEARNING_RATE': 0.001,
     'WEIGHT_DECAY': 0.0005,
-    'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy
+    'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
     'WARMUP_EPOCH': 5,
     'NUM_WORKERS': 16,
     'SAVE_INTERVAL': 5,
     'NUM_CLASSES': BASE_CONFIG['NUM_CLASSES']
 }
 
-# you can add any networks in torchvision.models
+# you can add any networks in torchvision.models or customize in model.py
 NET_CONFIG = {
     'resnet50': {
         'MODEL': models.resnet50,
