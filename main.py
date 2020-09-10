@@ -13,7 +13,7 @@ from config import BASE_CONFIG, DATA_CONFIG, NET_CONFIG
 
 
 def main():
-    save_dir = os.path.split(BASE_CONFIG['SAVE_PATH'])[0]
+    save_dir = BASE_CONFIG['SAVE_PATH']
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -52,6 +52,7 @@ def main():
 
 
 if __name__ == '__main__':
-    random.seed(1)
-    torch.set_seed(1)
+    seed = 1
+    random.seed(seed)
+    torch.manual_seed(seed)
     main()
