@@ -1,8 +1,10 @@
 import os
+import random
 
-import pickle
 import torch
+import pickle
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
 from model import generate_model
 from train import train, evaluate
@@ -32,15 +34,13 @@ def main():
     )
 
     # train
-    model, record_epochs, accs, losses = train(
+    logger = SummaryWriter(BASE_CONFIG['RECORD_PATH'])
+    train(
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
-        save_path=BASE_CONFIG['SAVE_PATH']
-    )
-    pickle.dump(
-        (record_epochs, accs, losses),
-        open(BASE_CONFIG['RECORD_PATH'], 'wb')
+        save_path=BASE_CONFIG['SAVE_PATH'],
+        logger=logger
     )
 
     # test
@@ -48,4 +48,6 @@ def main():
 
 
 if __name__ == '__main__':
+    random.seed(1)
+    torch.set_seed(1)
     main()

@@ -1,3 +1,5 @@
+import os
+
 import torch
 import numpy as np
 import torch.nn as nn
@@ -11,7 +13,7 @@ from metrics import accuracy, quadratic_weighted_kappa
 from config import TRAIN_CONFIG
 
 
-def train(model, train_dataset, val_dataset, save_path):
+def train(model, train_dataset, val_dataset, save_path, logger):
     epochs = TRAIN_CONFIG['EPOCHS']
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
     num_workers = TRAIN_CONFIG['NUM_WORKERS']
@@ -37,18 +39,18 @@ def train(model, train_dataset, val_dataset, save_path):
     warmup_scheduler = WarmupLRScheduler(optimizer, warmup_batch, learning_rate)
 
     # train
-    record_epochs, accs, losses = _train(
+    _train(
         model,
         train_loader,
         val_loader,
         cross_entropy,
         optimizer,
         save_path,
-        weighted_sampler=weighted_sampler,
-        lr_scheduler=lr_scheduler,
-        warmup_scheduler=warmup_scheduler,
+        logger,
+        weighted_sampler,
+        lr_scheduler,
+        warmup_scheduler,
     )
-    return model, record_epochs, accs, losses
 
 
 def _train(
@@ -58,6 +60,7 @@ def _train(
     loss_function,
     optimizer,
     save_path,
+    logger=None,
     weighted_sampler=None,
     lr_scheduler=None,
     warmup_scheduler=None
@@ -72,7 +75,6 @@ def _train(
 
     # train
     max_indicator = 0
-    record_epochs, accs, losses = [], [], []
     model.train()
     for epoch in range(1, epochs + 1):
         # resampling weight update
@@ -129,16 +131,20 @@ def _train(
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
         indicator = kappa if kappa_prior else acc
         if indicator > max_indicator:
-            torch.save(model, save_path)
+            torch.save(model, os.path.join(save_path, 'best_validation_model.pt'))
             max_indicator = indicator
-            print_msg('Model save at {}'.format(save_path))
+            print_msg('Best in validation set. Model save at {}'.format(save_path))
+
+        if epoch % TRAIN_CONFIG['SAVE_INTERVAL'] == 0:
+            torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
         # record
-        record_epochs.append(epoch)
-        accs.append(acc)
-        losses.append(avg_loss)
+        logger.add_scalar('training loss', avg_loss, epoch)
+        logger.add_scalar('training accuracy', avg_acc, epoch)
+        logger.add_scalar('validation accuracy', acc, epoch)
+        logger.add_scalar('validation kappa', kappa, epoch)
 
-    return record_epochs, accs, losses
+    torch.save(model, os.path.join(save_path, 'final_model.pt'))
 
 
 def evaluate(model_path, test_dataset):

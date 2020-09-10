@@ -6,8 +6,8 @@ BASE_CONFIG = {
     'NETWORK': 'resnext101_32x8d',  # shoud be name in NET_CONFIG
     'DATA_PATH': 'path/to/your/dataset',
     'DATA_INDEX': None,  # if not None, using a dict with image names to build dataset else using folder structure of DATA_PATH to build.
-    'SAVE_PATH': 'path/to/save/model',
-    'RECORD_PATH': 'path/to/save/log',
+    'SAVE_PATH': 'path/to/save/folder',
+    'RECORD_PATH': 'path/to/save/log/folder',
     'PRETRAINED': True,
     'CHECKPOINT': None,
     'NUM_CLASSES': 5,
@@ -36,6 +36,7 @@ TRAIN_CONFIG = {
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy
     'WARMUP_EPOCH': 5,
     'NUM_WORKERS': 16,
+    'SAVE_INTERVAL': 5,
     'NUM_CLASSES': BASE_CONFIG['NUM_CLASSES']
 }
 
@@ -64,14 +65,14 @@ NET_CONFIG = {
             'aux_logits': False
         },
     },
-    'resnext50_32x4d':{
+    'resnext50_32x4d': {
         'MODEL': models.resnext50_32x4d,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
         'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
-    'resnext101_32x8d':{
+    'resnext101_32x8d': {
         'MODEL': models.resnext101_32x8d,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
