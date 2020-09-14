@@ -27,7 +27,6 @@ def generate_model(network, num_classes, checkpoint, pretrained):
                 net_config['BOTTLENECK_SIZE'],
                 num_classes,
                 pretrained,
-                net_config['DROPOUT'],
                 **net_config['OPTIONAL']
             ).cuda()
 
@@ -36,15 +35,13 @@ def generate_model(network, num_classes, checkpoint, pretrained):
 
     return model
 
+
 class MyModel(nn.Module):
-    def __init__(self, backbone, bottleneck_size, num_classes, pretrained=False, dropout=0.2, **kwargs):
+    def __init__(self, backbone, bottleneck_size, num_classes, pretrained=False, **kwargs):
         super(MyModel, self).__init__()
 
-        self.net = backbone(pretrained=pretrained, num_classes=1000, **kwargs)
-        self.net.fc = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(bottleneck_size, num_classes)
-        )
+        self.net = backbone(pretrained=pretrained, **kwargs)
+        self.net.fc = nn.Linear(bottleneck_size, num_classes)
 
     def forward(self, x):
         pred = self.net(x)

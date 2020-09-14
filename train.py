@@ -69,9 +69,11 @@ def _train(
     num_classes = TRAIN_CONFIG['NUM_CLASSES']
     kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
 
+
     model_dict = model.state_dict()
     trainable_layers = [(tensor, model_dict[tensor].size()) for tensor in model_dict]
     print_msg('Trainable layers: ', ['{}\t{}'.format(k, v) for k, v in trainable_layers])
+    print_msg('Training configuration: ', ['{}\t{}'.format(k, v) for k, v in TRAIN_CONFIG])
 
     # train
     max_indicator = 0

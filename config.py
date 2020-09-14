@@ -46,21 +46,18 @@ NET_CONFIG = {
         'MODEL': models.resnet50,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'resnet101': {
         'MODEL': models.resnet101,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'inception_v3': {
         'MODEL': models.inception_v3,
         'INPUT_SIZE': 299,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {
             'aux_logits': False
         },
@@ -69,21 +66,18 @@ NET_CONFIG = {
         'MODEL': models.resnext50_32x4d,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'resnext101_32x8d': {
         'MODEL': models.resnext101_32x8d,
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'resnest269': {
         'MODEL': resnest.resnest269,
         'INPUT_SIZE': 456,
         'BOTTLENECK_SIZE': 2048,
-        'DROPOUT': 0.5,
         'OPTIONAL': {}
     },
     'efficientnet-b0': {'INPUT_SIZE': 224},

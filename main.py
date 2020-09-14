@@ -1,5 +1,6 @@
 import os
 import random
+import shutil
 
 import torch
 import numpy as np
@@ -15,6 +16,11 @@ def main():
     # reproducibility
     seed = BASE_CONFIG['RANDOM_SEED']
     set_random_seed(seed)
+
+    # create folder
+    save_path = BASE_CONFIG['SAVE_PATH']
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
 
     # create folder
     save_dir = BASE_CONFIG['SAVE_PATH']
@@ -37,9 +43,13 @@ def main():
         BASE_CONFIG['DATA_INDEX']
     )
 
-    # train
-    save_path = BASE_CONFIG['SAVE_PATH']
+    # create logger
+    record_path = BASE_CONFIG['RECORD_PATH']
+    if os.path.exists(record_path):
+        shutil.rmtree(record_path) 
     logger = SummaryWriter(BASE_CONFIG['RECORD_PATH'])
+
+    # train
     train(
         model=model,
         train_dataset=train_dataset,
