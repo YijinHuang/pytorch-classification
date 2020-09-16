@@ -73,7 +73,7 @@ def _train(
     model_dict = model.state_dict()
     trainable_layers = [(tensor, model_dict[tensor].size()) for tensor in model_dict]
     print_msg('Trainable layers: ', ['{}\t{}'.format(k, v) for k, v in trainable_layers])
-    print_msg('Training configuration: ', ['{}\t{}'.format(k, v) for k, v in TRAIN_CONFIG])
+    print_msg('Training configuration: ', ['{}:\t{}'.format(k, v) for k, v in TRAIN_CONFIG.items()])
 
     # train
     max_indicator = 0
