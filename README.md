@@ -9,9 +9,9 @@
 
 - Update all hyperparameters in one file
 - Training progress monitoring and curve visualization
-- Weighted sampling for unbalance dataset
-- Kappa calculation for evaluating model on unbalance dataset
-- Different learning rate scheduler and warmup support
+- Weighted sampling for imbalance dataset
+- Kappa calculation for evaluating model on imbalance dataset
+- Different learning rate schedulers and warmup support
 - Data augmentation
 - Multiple GPUs support
 
@@ -55,7 +55,7 @@ $ CUDA_VISIBLE_DEVICES=x python main.py
 
 
 
-4. Monitor the training progress in website [127.0.0.1:6006](127.0.0.1:6006) by running:
+4. Monitor your training progress in website [127.0.0.1:6006](127.0.0.1:6006) by running:
 
 ```shell
 $ tensorborad --logdir=/path/to/your/log --port=6006
