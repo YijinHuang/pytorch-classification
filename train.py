@@ -178,7 +178,10 @@ def _train(
 
         # update learning rate
         if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
-            lr_scheduler.step()
+            if TRAIN_CONFIG['LR_SCHEDULER'] == 'REDUCE_ON_PLATEAU':
+                lr_scheduler.step(avg_loss)
+            else:
+                lr_scheduler.step()
 
         curr_lr = optimizer.param_groups[0]['lr']
         if epoch % 10 == 0:

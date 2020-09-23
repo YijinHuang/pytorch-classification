@@ -2,30 +2,30 @@ import torchvision.models as models
 
 
 BASIC_CONFIG = {
-    'NETWORK': 'resnext101_32x8d',  # shoud be one name in NET_CONFIG
-    'DATA_PATH': '../../dataset/train_data_full_512',
+    'NETWORK': 'resnet50',  # shoud be one name in NET_CONFIG
+    'DATA_PATH': 'path/to/your/dataset',
     'DATA_INDEX': None,  # alternative way to build dataset
-    'SAVE_PATH': '../../result/eyepacs/test',
-    'RECORD_PATH': '../../result/eyepacs/log/test',
+    'SAVE_PATH': 'path/to/save/folder',
+    'RECORD_PATH': 'path/to/save/log/folder',
     'PRETRAINED': True,  # load pretrained parameters in ImageNet
     'CHECKPOINT': None,  # load other pretrained model
     'NUM_CLASSES': 5,  # number of categories
-    'RANDOM_SEED': 1  # random seed for reproducibilty
+    'RANDOM_SEED': 0  # random seed for reproducibilty
 }
 
 DATA_CONFIG = {
     'MEAN': (0.485, 0.456, 0.406),  # for data normalization
     'STD': (0.229, 0.224, 0.225),
-    'SAMPLING_STRATEGY': 'DYNAMIC',  # SHUFFLE / BALANCE / DYNAMIC
-    'DECAY_RATE': 1,  # if SAMPLING_STRATEGY is DYNAMIC, sampling weight will decay from balance to shuffle
+    'SAMPLING_STRATEGY': 'SHUFFLE',  # SHUFFLE / BALANCE / DYNAMIC
+    'DECAY_RATE': 0.9,  # if SAMPLING_STRATEGY is DYNAMIC, sampling weight will decay from balance to shuffle
 }
 
 TRAIN_CONFIG = {
     'EPOCHS': 50,  # total training epochs
-    'BATCH_SIZE': 48,  # training batch size
+    'BATCH_SIZE': 16,  # training batch size
     'OPTIMIZER': 'SGD',  # SGD / ADAM
     'LEARNING_RATE': 0.001,  # initial learning rate
-    'LR_SCHEDULER': 'MULTIPLE_STEPS',  # MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
+    'LR_SCHEDULER': 'COSINE',  # MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
     'WEIGHT_DECAY': 0.0005,
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
     'WARMUP_EPOCHS': 5,  # warmup epochs
@@ -81,14 +81,14 @@ DATA_AUGMENTATION = {
 # you can add any learning rate scheduler in torch.optim.lr_scheduler
 SCHEDULER_CONFIG = {
     'MULTIPLE_STEPS': {
-        'milestones': [15, 25, 45],
-        'gamma': 0.1,
+        'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
+        'gamma': 0.1,  # Multiplicative factor of learning rate decay
     },
     'REDUCE_ON_PLATEAU': {
-        'mode': 'min',
-        'factor': 0.1,
-        'patience': 5,
-        'threshold': 1e-4,
-        'eps': 1e-5,
+        'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
+        'factor': 0.1,  # Factor by which the learning rate will be reduced
+        'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
+        'threshold': 1e-4,  #  Threshold for measuring the new optimum
+        'eps': 1e-5,  # Minimal decay applied to lr
     }
 }
