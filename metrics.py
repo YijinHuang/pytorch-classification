@@ -42,14 +42,3 @@ def accuracy(predictions, targets, c_matrix=None):
 
     correct = (predicted == targets).sum().item()
     return correct / len(predicted)
-
-
-if __name__ == "__main__":
-    conf_mat = np.array([
-        [37, 8, 5, 0, 0],
-        [8, 32, 8, 2, 0],
-        [6, 6, 31, 5, 2],
-        [1, 1, 5, 39, 4],
-        [1, 1, 4, 10, 34]
-    ])
-    print(quadratic_weighted_kappa(conf_mat))

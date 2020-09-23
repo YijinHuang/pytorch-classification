@@ -10,33 +10,79 @@ from torch.utils.data import DataLoader
 
 from data_utils import ScheduledWeightedSampler
 from metrics import accuracy, quadratic_weighted_kappa
-from config import TRAIN_CONFIG
+from config import BASIC_CONFIG, TRAIN_CONFIG, DATA_CONFIG, SCHEDULER_CONFIG
 
 
 def train(model, train_dataset, val_dataset, save_path, logger):
-    epochs = TRAIN_CONFIG['EPOCHS']
+    # define weighted_sampler
+    if DATA_CONFIG['SAMPLING_STRATEGY'] == 'BALANCE':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
+    elif DATA_CONFIG['SAMPLING_STRATEGY'] == 'DYNAMIC':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['DECAY_RATE'])
+    else:
+        weighted_sampler = None
+
+    # define data loader
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
     num_workers = TRAIN_CONFIG['NUM_WORKERS']
-    warmup_epoch = TRAIN_CONFIG['WARMUP_EPOCH']
-    weight_decay = TRAIN_CONFIG['WEIGHT_DECAY']
-    learning_rate = TRAIN_CONFIG['LEARNING_RATE']
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=False if weighted_sampler else True,
+        sampler=weighted_sampler,
+        num_workers=num_workers,
+        drop_last=True
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
 
-    # create dataloader
-    train_targets = [sampler[1] for sampler in train_dataset.imgs]
-    weighted_sampler = ScheduledWeightedSampler(len(train_dataset), train_targets, True)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=weighted_sampler, num_workers=num_workers, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-
-    # define loss and optimizier
+    # define loss
     cross_entropy = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, nesterov=True, weight_decay=weight_decay)
 
-    # learning rate warmup and decay
-    warmup_batch = len(train_loader) * warmup_epoch
-    remain_batch = len(train_loader) * (epochs - warmup_epoch)
+    # define optmizer
+    optimizer_strategy = TRAIN_CONFIG['OPTIMIZER']
+    learning_rate = TRAIN_CONFIG['LEARNING_RATE']
+    weight_decay = TRAIN_CONFIG['WEIGHT_DECAY']
+    if optimizer_strategy == 'SGD':
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=learning_rate,
+            momentum=0.9,
+            nesterov=True,
+            weight_decay=weight_decay
+        )
+    elif optimizer_strategy == 'ADAM':
+        optimizer = torch.optim.Adam(
+            model.parameters,
+            lr=learning_rate,
+            weight_decay=weight_decay
+        )
+    else:
+        raise Exception('Not implemented optimizer.')
 
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=remain_batch)
-    warmup_scheduler = WarmupLRScheduler(optimizer, warmup_batch, learning_rate)
+    # define learning rate scheduler
+    epochs = TRAIN_CONFIG['EPOCHS']
+    warmup_epochs = TRAIN_CONFIG['WARMUP_EPOCHS']
+    scheduler_strategy = TRAIN_CONFIG['LR_SCHEDULER']
+    if scheduler_strategy in SCHEDULER_CONFIG.keys():
+        scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
+    if scheduler_strategy == 'COSINE':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+    elif scheduler_strategy == 'MULTIPLE_STEPS':
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
+    else:
+        lr_scheduler = None
+
+    if warmup_epochs > 0:
+        warmup_scheduler = WarmupLRScheduler(optimizer, warmup_epochs, learning_rate)
+    else:
+        warmup_scheduler = None
 
     # train
     _train(
@@ -69,13 +115,12 @@ def _train(
     num_classes = TRAIN_CONFIG['NUM_CLASSES']
     kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
 
-
-    model_dict = model.state_dict()
-    trainable_layers = [(tensor, model_dict[tensor].size()) for tensor in model_dict]
-    print_msg('Trainable layers: ', ['{}\t{}'.format(k, v) for k, v in trainable_layers])
+    # print configuration
+    print_msg('Basic configuration: ', ['{}:\t{}'.format(k, v) for k, v in BASIC_CONFIG.items()])
+    print_msg('Data configuration: ', ['{}:\t{}'.format(k, v) for k, v in DATA_CONFIG.items()])
     print_msg('Training configuration: ', ['{}:\t{}'.format(k, v) for k, v in TRAIN_CONFIG.items()])
 
-    # train
+    # training
     max_indicator = 0
     model.train()
     for epoch in range(1, epochs + 1):
@@ -85,24 +130,13 @@ def _train(
 
         # learning rate update
         if warmup_scheduler and not warmup_scheduler.is_finish():
-            if epoch > 1:
-                curr_lr = optimizer.param_groups[0]['lr']
-                print_msg('Learning rate warmup to {}'.format(curr_lr))
-        elif lr_scheduler:
-            if epoch % 10 == 0:
-                curr_lr = optimizer.param_groups[0]['lr']
-                print_msg('Current learning rate is {}'.format(curr_lr))
+            warmup_scheduler.step()
 
         total = 0
         correct = 0
         epoch_loss = 0
         progress = tqdm(enumerate(train_loader))
         for step, train_data in progress:
-            if warmup_scheduler and not warmup_scheduler.is_finish():
-                warmup_scheduler.step()
-            elif lr_scheduler:
-                lr_scheduler.step()
-
             X, y = train_data
             X, y = X.cuda(), y.long().cuda()
 
@@ -126,11 +160,13 @@ def _train(
                 .format(epoch, avg_loss, avg_acc)
             )
 
-        # save model
+        # validation performance
         c_matrix = np.zeros((num_classes, num_classes), dtype=int)
         acc = _eval(model, val_loader, c_matrix)
         kappa = quadratic_weighted_kappa(c_matrix)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
+
+        # save model
         indicator = kappa if kappa_prior else acc
         if indicator > max_indicator:
             torch.save(model, os.path.join(save_path, 'best_validation_model.pt'))
@@ -140,13 +176,24 @@ def _train(
         if epoch % TRAIN_CONFIG['SAVE_INTERVAL'] == 0:
             torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
+        # update learning rate
+        if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
+            lr_scheduler.step()
+
+        curr_lr = optimizer.param_groups[0]['lr']
+        if epoch % 10 == 0:
+            print_msg('Current learning rate is {}'.format(curr_lr))
+
         # record
         logger.add_scalar('training loss', avg_loss, epoch)
         logger.add_scalar('training accuracy', avg_acc, epoch)
+        logger.add_scalar('learning rate', curr_lr, epoch)
         logger.add_scalar('validation accuracy', acc, epoch)
         logger.add_scalar('validation kappa', kappa, epoch)
 
+    # save final model
     torch.save(model, os.path.join(save_path, 'final_model.pt'))
+    logger.close()
 
 
 def evaluate(model_path, test_dataset):
@@ -235,36 +282,22 @@ class FocalLoss(nn.Module):
             return loss.sum()
 
 
-# for angular loss
-class AngularPenalty(nn.Module):
-    def __init__(self, s=64, m=0.5, eps=1e-7):
-        super(AngularPenalty, self).__init__()
-
-        self.s = s
-        self.m = m
-        self.eps = eps
-
-    def forward(self, x, gt):
-        thetas = torch.acos(torch.clamp(x, -1. + self.eps, 1 - self.eps))
-        for i, y in enumerate(gt):
-            thetas[i][y] += self.m
-        logits = self.s * torch.cos(thetas)
-        return logits
-
-
-class WarmupLRScheduler:
-    def __init__(self, optimizer, warmup_batch, initial_lr):
-        self.step_num = 1
+class WarmupLRScheduler():
+    def __init__(self, optimizer, warmup_epochs, initial_lr, verbose=True):
+        self.epoch = 0
         self.optimizer = optimizer
-        self.warmup_batch = warmup_batch
+        self.warmup_epochs = warmup_epochs
         self.initial_lr = initial_lr
+        self.verbose = verbose
 
     def step(self):
-        if self.step_num <= self.warmup_batch:
-            self.step_num += 1
-            curr_lr = (self.step_num / self.warmup_batch) * self.initial_lr
+        if self.epoch <= self.warmup_epochs:
+            self.epoch += 1
+            curr_lr = (self.epoch / self.warmup_epochs) * self.initial_lr
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = curr_lr
+        if self.verbose:
+            print_msg('Warming up. Current learning rate is {}'.format(curr_lr))
 
     def is_finish(self):
-        return self.step_num > self.warmup_batch
+        return self.epoch >= self.warmup_epochs

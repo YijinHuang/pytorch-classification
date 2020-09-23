@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 import shutil
 
@@ -9,45 +10,45 @@ from torch.utils.tensorboard import SummaryWriter
 from model import generate_model
 from train import train, evaluate
 from data_utils import generate_dataset
-from config import BASE_CONFIG, NET_CONFIG
+from config import BASIC_CONFIG, NET_CONFIG
 
 
 def main():
     # reproducibility
-    seed = BASE_CONFIG['RANDOM_SEED']
+    seed = BASIC_CONFIG['RANDOM_SEED']
     set_random_seed(seed)
 
     # create folder
-    save_path = BASE_CONFIG['SAVE_PATH']
+    save_path = BASIC_CONFIG['SAVE_PATH']
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
     # create folder
-    save_dir = BASE_CONFIG['SAVE_PATH']
+    save_dir = BASIC_CONFIG['SAVE_PATH']
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     # build model
-    network = BASE_CONFIG['NETWORK']
+    network = BASIC_CONFIG['NETWORK']
     model = generate_model(
         network,
-        BASE_CONFIG['NUM_CLASSES'],
-        BASE_CONFIG['CHECKPOINT'],
-        BASE_CONFIG['PRETRAINED']
+        BASIC_CONFIG['NUM_CLASSES'],
+        BASIC_CONFIG['CHECKPOINT'],
+        BASIC_CONFIG['PRETRAINED']
     )
 
     # load dataset
     train_dataset, test_dataset, val_dataset = generate_dataset(
-        BASE_CONFIG['DATA_PATH'],
+        BASIC_CONFIG['DATA_PATH'],
         NET_CONFIG[network]['INPUT_SIZE'],
-        BASE_CONFIG['DATA_INDEX']
+        BASIC_CONFIG['DATA_INDEX']
     )
 
     # create logger
-    record_path = BASE_CONFIG['RECORD_PATH']
+    record_path = BASIC_CONFIG['RECORD_PATH']
     if os.path.exists(record_path):
-        shutil.rmtree(record_path) 
-    logger = SummaryWriter(BASE_CONFIG['RECORD_PATH'])
+        shutil.rmtree(record_path)
+    logger = SummaryWriter(BASIC_CONFIG['RECORD_PATH'])
 
     # train
     train(

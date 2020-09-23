@@ -1,46 +1,40 @@
 import torchvision.models as models
-from resnest import torch as resnest
 
 
-BASE_CONFIG = {
-    'NETWORK': 'resnext101_32x8d',  # shoud be name in NET_CONFIG
-    'DATA_PATH': 'path/to/your/dataset',
-    'DATA_INDEX': None,  # if not None, using this pickle file to build dataset
-    'SAVE_PATH': 'path/to/save/folder',
-    'RECORD_PATH': 'path/to/save/log/folder',
-    'PRETRAINED': True,
-    'CHECKPOINT': None,
-    'NUM_CLASSES': 5,
-    'RANDOM_SEED': 0
+BASIC_CONFIG = {
+    'NETWORK': 'resnext101_32x8d',  # shoud be one name in NET_CONFIG
+    'DATA_PATH': '../../dataset/train_data_full_512',
+    'DATA_INDEX': None,  # alternative way to build dataset
+    'SAVE_PATH': '../../result/eyepacs/test',
+    'RECORD_PATH': '../../result/eyepacs/log/test',
+    'PRETRAINED': True,  # load pretrained parameters in ImageNet
+    'CHECKPOINT': None,  # load other pretrained model
+    'NUM_CLASSES': 5,  # number of categories
+    'RANDOM_SEED': 1  # random seed for reproducibilty
 }
 
 DATA_CONFIG = {
-    'MEAN': (0.485, 0.456, 0.406),
+    'MEAN': (0.485, 0.456, 0.406),  # for data normalization
     'STD': (0.229, 0.224, 0.225),
-    'INITIAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],  # weighted sampling
-    'FINAL_SAMPLING_WEIGHTS': [1] * BASE_CONFIG['NUM_CLASSES'],
-    'DECAY_RATE': 1,  # if not 1, sampling weight will decay from initial to final
-    'DATA_AUGMENTATION': {
-        'scale': (1 / 1.15, 1.15),
-        'stretch_ratio': (0.7, 1.3),
-        'ratation': (-180, 180),
-        'translation_ratio': (0.2, 0.2)
-    }
+    'SAMPLING_STRATEGY': 'DYNAMIC',  # SHUFFLE / BALANCE / DYNAMIC
+    'DECAY_RATE': 1,  # if SAMPLING_STRATEGY is DYNAMIC, sampling weight will decay from balance to shuffle
 }
 
 TRAIN_CONFIG = {
-    'EPOCHS': 50,
-    'BATCH_SIZE': 48,
-    'LEARNING_RATE': 0.001,
+    'EPOCHS': 50,  # total training epochs
+    'BATCH_SIZE': 48,  # training batch size
+    'OPTIMIZER': 'SGD',  # SGD / ADAM
+    'LEARNING_RATE': 0.001,  # initial learning rate
+    'LR_SCHEDULER': 'MULTIPLE_STEPS',  # MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
     'WEIGHT_DECAY': 0.0005,
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
-    'WARMUP_EPOCH': 5,
-    'NUM_WORKERS': 16,
-    'SAVE_INTERVAL': 5,
-    'NUM_CLASSES': BASE_CONFIG['NUM_CLASSES']
+    'WARMUP_EPOCHS': 5,  # warmup epochs
+    'NUM_WORKERS': 16,  # number of cpus used to load data at each step
+    'SAVE_INTERVAL': 5,  # number of epochs to store model
+    'NUM_CLASSES': BASIC_CONFIG['NUM_CLASSES']
 }
 
-# you can add any networks in torchvision.models or customize in model.py
+# you can add any networks in torchvision.models
 NET_CONFIG = {
     'resnet50': {
         'MODEL': models.resnet50,
@@ -73,17 +67,28 @@ NET_CONFIG = {
         'INPUT_SIZE': 224,
         'BOTTLENECK_SIZE': 2048,
         'OPTIONAL': {}
+    }
+}
+
+# configuration for data augmentation
+DATA_AUGMENTATION = {
+    'scale': (1 / 1.15, 1.15),
+    'stretch_ratio': (0.7, 1.3),
+    'ratation': (-180, 180),
+    'translation_ratio': (0.2, 0.2)
+}
+
+# you can add any learning rate scheduler in torch.optim.lr_scheduler
+SCHEDULER_CONFIG = {
+    'MULTIPLE_STEPS': {
+        'milestones': [15, 25, 45],
+        'gamma': 0.1,
     },
-    'resnest269': {
-        'MODEL': resnest.resnest269,
-        'INPUT_SIZE': 456,
-        'BOTTLENECK_SIZE': 2048,
-        'OPTIONAL': {}
-    },
-    'efficientnet-b0': {'INPUT_SIZE': 224},
-    'efficientnet-b1': {'INPUT_SIZE': 240},
-    'efficientnet-b2': {'INPUT_SIZE': 260},
-    'efficientnet-b3': {'INPUT_SIZE': 300},
-    'efficientnet-b4': {'INPUT_SIZE': 380},
-    'efficientnet-b5': {'INPUT_SIZE': 456},
+    'REDUCE_ON_PLATEAU': {
+        'mode': 'min',
+        'factor': 0.1,
+        'patience': 5,
+        'threshold': 1e-4,
+        'eps': 1e-5,
+    }
 }

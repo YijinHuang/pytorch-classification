@@ -1,35 +1,26 @@
-## Code for Classification
+## Pytorch Classification
 
-- Implemented in Pytorch.
-
-- Can be easily applied in simple classification tasks.
-
-
-
-### Available Models
-
-- ResNet, Inception or other models in torchvision (you can add them in `config.py`)
-- EfficientNet (Use [this](https://github.com/lukemelas/EfficientNet-PyTorch) implementation)
+- A general, feasible and extensible framework for classification tasks.
+- Easy to transfer to your project.
 
 
 
-### Tricks Implemented
+### Features
 
-- Adaptive data sampling weight
-- Warm up
-- Cosine decay
-- Affine data augmentation
-- Focal loss
-- Angular loss
-- Kappa prior
+- Update all hyperparameters in one file
+- Training progress monitoring and curve visualization
+- Weighted sampling for unbalance dataset
+- Kappa calculation for evaluating model on unbalance dataset
+- Different learning rate scheduler and warmup support
+- Data augmentation
+- Multiple GPUs support
 
 
 
-### How to Use
 
-#### Organize your dataset
+### How to use
 
-Your should organize your dataset as following:
+1. Organize your dataset as following:
 
 ```
 ├── your_data_dir
@@ -52,15 +43,22 @@ Here, `val` and `test` directory have the same structure of  `train`.
 
 
 
-#### Run
+2. Update your configurations and hyperparameters in `config.py`.
 
-Most of hyperparameters and configurations are in  `config.py`. 
 
-Change dataset path and network in `BASE_CONFIG` in `config.py`.
 
-Then run:
+3. Run:
 
 ```shell
 $ CUDA_VISIBLE_DEVICES=x python main.py
 ```
+
+
+
+4. Monitor the training progress in website [127.0.0.1:6006](127.0.0.1:6006) by running:
+
+```shell
+$ tensorborad --logdir=/path/to/your/log --port=6006
+```
+
 
