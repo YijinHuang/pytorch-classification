@@ -84,7 +84,7 @@ DATA_AUGMENTATION = {
 SCHEDULER_CONFIG = {
     'EXPONENTIAL': {
         'gamma': 0.6  # Multiplicative factor of learning rate decay
-    }
+    },
     'MULTIPLE_STEPS': {
         'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
         'gamma': 0.1,  # Multiplicative factor of learning rate decay

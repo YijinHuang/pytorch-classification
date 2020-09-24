@@ -15,13 +15,14 @@ def generate_dataset(data_path, input_size, pkl=None):
         datasets = generate_dataset_from_pickle(pkl, input_size)
     else:
         datasets = generate_dataset_from_folder(data_path, input_size)
-    
+
     train_dataset, test_dataset, val_dataset = datasets
-    print('Working with:')
-    print('Categories: {}'.format(len(train_dataset.classes)))
-    print('Training samples: {}'.format(len(train_dataset)))
-    print('Validation samples: {}'.format(len(val_dataset)))
-    print('Test samples: {}'.format(len(test_dataset)))
+    print('Dataset Loaded.')
+    print('Categories:\t{}'.format(len(train_dataset.classes)))
+    print('Training:\t{}'.format(len(train_dataset)))
+    print('Validation:\t{}'.format(len(val_dataset)))
+    print('Test:\t\t{}'.format(len(test_dataset)))
+    return datasets
 
 
 def generate_dataset_from_folder(data_path, input_size):
