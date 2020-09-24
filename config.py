@@ -25,12 +25,14 @@ TRAIN_CONFIG = {
     'BATCH_SIZE': 16,  # training batch size
     'OPTIMIZER': 'SGD',  # SGD / ADAM
     'LEARNING_RATE': 0.001,  # initial learning rate
-    'LR_SCHEDULER': 'COSINE',  # MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
-    'WEIGHT_DECAY': 0.0005,
+    'LR_SCHEDULER': 'COSINE',  # EXPONENTIAL / MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
+    'MOMENTUM': 0.9,  # momentum for SGD optimizer
+    'WEIGHT_DECAY': 0.0005,  # weight decay for SGD and ADAM
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
     'WARMUP_EPOCHS': 5,  # warmup epochs
     'NUM_WORKERS': 16,  # number of cpus used to load data at each step
     'SAVE_INTERVAL': 5,  # number of epochs to store model
+    'PIN_MEMORY': True,  # enables fast data transfer to CUDA-enabled GPUs
     'NUM_CLASSES': BASIC_CONFIG['NUM_CLASSES']
 }
 
@@ -80,6 +82,9 @@ DATA_AUGMENTATION = {
 
 # you can add any learning rate scheduler in torch.optim.lr_scheduler
 SCHEDULER_CONFIG = {
+    'EXPONENTIAL': {
+        'gamma': 0.6  # Multiplicative factor of learning rate decay
+    }
     'MULTIPLE_STEPS': {
         'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
         'gamma': 0.1,  # Multiplicative factor of learning rate decay
@@ -88,7 +93,7 @@ SCHEDULER_CONFIG = {
         'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
         'factor': 0.1,  # Factor by which the learning rate will be reduced
         'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
-        'threshold': 1e-4,  #  Threshold for measuring the new optimum
+        'threshold': 1e-4,  # Threshold for measuring the new optimum
         'eps': 1e-5,  # Minimal decay applied to lr
     }
 }

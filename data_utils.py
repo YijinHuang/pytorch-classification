@@ -12,9 +12,16 @@ from torchvision import transforms, datasets
 
 def generate_dataset(data_path, input_size, pkl=None):
     if pkl:
-        return generate_dataset_from_pickle(pkl, input_size)
+        datasets = generate_dataset_from_pickle(pkl, input_size)
     else:
-        return generate_dataset_from_folder(data_path, input_size)
+        datasets = generate_dataset_from_folder(data_path, input_size)
+    
+    train_dataset, test_dataset, val_dataset = datasets
+    print('Working with:')
+    print('Categories: {}'.format(len(train_dataset.classes)))
+    print('Training samples: {}'.format(len(train_dataset)))
+    print('Validation samples: {}'.format(len(val_dataset)))
+    print('Test samples: {}'.format(len(test_dataset)))
 
 
 def generate_dataset_from_folder(data_path, input_size):

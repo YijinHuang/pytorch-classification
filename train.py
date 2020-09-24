@@ -25,19 +25,23 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     # define data loader
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
     num_workers = TRAIN_CONFIG['NUM_WORKERS']
+    pin_memory = TRAIN_CONFIG['PIN_MEMORY']
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=False if weighted_sampler else True,
         sampler=weighted_sampler,
         num_workers=num_workers,
-        drop_last=True
+        drop_last=True,
+        pin_memory=pin_memory
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
+        shuffle=False,
         num_workers=num_workers,
-        shuffle=False
+        drop_last=False,
+        pin_memory=pin_memory
     )
 
     # define loss
@@ -47,17 +51,18 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     optimizer_strategy = TRAIN_CONFIG['OPTIMIZER']
     learning_rate = TRAIN_CONFIG['LEARNING_RATE']
     weight_decay = TRAIN_CONFIG['WEIGHT_DECAY']
+    momentum = TRAIN_CONFIG['MOMENTUM']
     if optimizer_strategy == 'SGD':
         optimizer = torch.optim.SGD(
             model.parameters(),
             lr=learning_rate,
-            momentum=0.9,
+            momentum=momentum,
             nesterov=True,
             weight_decay=weight_decay
         )
     elif optimizer_strategy == 'ADAM':
         optimizer = torch.optim.Adam(
-            model.parameters,
+            model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay
         )
@@ -76,6 +81,8 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
     elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
     else:
         lr_scheduler = None
 
