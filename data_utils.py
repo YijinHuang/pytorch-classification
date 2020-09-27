@@ -141,3 +141,37 @@ class ScheduledWeightedSampler(Sampler):
         min_weight = min(weights)
         class_weights = [weights[i] / min_weight for i in classes_idx]
         return class_weights
+
+
+class LossWeightsScheduler():
+    def __init__(self, dataset, decay_rate):
+        self.dataset = dataset
+        self.decay_rate = decay_rate
+
+        self.num_samples = len(dataset)
+        self.targets = [sample[1] for sample in dataset.imgs]
+        self.class_weights = self.cal_class_weights(self.targets)
+
+        self.epoch = 0
+        self.w0 = torch.as_tensor(self.class_weights, dtype=torch.float32)
+        self.wf = torch.as_tensor([1] * len(self.dataset.classes), dtype=torch.float32)
+
+    def step(self):
+        weights = self.w0
+        if self.decay_rate < 1:
+            self.epoch += 1
+            factor = self.decay_rate**(self.epoch - 1)
+            weights = factor * self.w0 + (1 - factor) * self.wf
+        return weights
+
+    def __len__(self):
+        return self.num_samples
+
+    def cal_class_weights(self, train_targets):
+        num_classes = len(self.dataset.classes)
+        classes_idx = list(range(num_classes))
+        class_count = [self.targets.count(i) for i in classes_idx]
+        weights = [self.num_samples / class_count[i] for i in classes_idx]
+        min_weight = min(weights)
+        class_weights = [weights[i] / min_weight for i in classes_idx]
+        return class_weights

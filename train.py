@@ -8,17 +8,18 @@ from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from data_utils import ScheduledWeightedSampler
+from data_utils import ScheduledWeightedSampler, LossWeightsScheduler
 from metrics import accuracy, quadratic_weighted_kappa
 from config import BASIC_CONFIG, TRAIN_CONFIG, DATA_CONFIG, SCHEDULER_CONFIG
 
 
 def train(model, train_dataset, val_dataset, save_path, logger):
     # define weighted_sampler
-    if DATA_CONFIG['SAMPLING_STRATEGY'] == 'BALANCE':
+    sampling_strategy = DATA_CONFIG['SAMPLING_STRATEGY']
+    if sampling_strategy == 'BALANCE':
         weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
-    elif DATA_CONFIG['SAMPLING_STRATEGY'] == 'DYNAMIC':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['DECAY_RATE'])
+    elif sampling_strategy == 'DYNAMIC':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['SAMPLING_WEIGHTS_DECAY_RATE'])
     else:
         weighted_sampler = None
 
@@ -44,8 +45,18 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         pin_memory=pin_memory
     )
 
-    # define loss
-    cross_entropy = nn.CrossEntropyLoss()
+    # define loss and loss weights scheduler
+    weight = None
+    loss_weight_scheduler = None
+    loss_weight = TRAIN_CONFIG['LOSS_WEIGHT']
+    if loss_weight == 'BALANCE':
+        loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
+    elif loss_weight == 'DYNAMIC':
+        loss_weight_scheduler = LossWeightsScheduler(train_dataset, TRAIN_CONFIG['LOSS_WEIGHT_DECAY_RATE'])
+    elif isinstance(loss_weight, list):
+        assert len(loss_weight) == len(train_dataset.classes)
+        weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=BASIC_CONFIG['DEVICE'])
+    cross_entropy = nn.CrossEntropyLoss(weight=weight)
 
     # define optmizer
     optimizer_strategy = TRAIN_CONFIG['OPTIMIZER']
@@ -103,6 +114,7 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         weighted_sampler,
         lr_scheduler,
         warmup_scheduler,
+        loss_weight_scheduler
     )
 
 
@@ -116,8 +128,10 @@ def _train(
     logger=None,
     weighted_sampler=None,
     lr_scheduler=None,
-    warmup_scheduler=None
+    warmup_scheduler=None,
+    loss_weight_scheduler=None
 ):
+    device = BASIC_CONFIG['DEVICE']
     epochs = TRAIN_CONFIG['EPOCHS']
     num_classes = TRAIN_CONFIG['NUM_CLASSES']
     kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
@@ -135,9 +149,18 @@ def _train(
         if weighted_sampler:
             weighted_sampler.step()
 
-        # learning rate update
+        # update loss weights
+        if loss_weight_scheduler:
+            weight = loss_weight_scheduler.step().to(device)
+            loss_function.weight = weight
+
+        # warmup scheduler update
         if warmup_scheduler and not warmup_scheduler.is_finish():
             warmup_scheduler.step()
+
+        curr_lr = optimizer.param_groups[0]['lr']
+        if epoch % 10 == 0:
+            print_msg('Current learning rate is {}'.format(curr_lr))
 
         total = 0
         correct = 0
@@ -145,7 +168,7 @@ def _train(
         progress = tqdm(enumerate(train_loader))
         for step, train_data in progress:
             X, y = train_data
-            X, y = X.cuda(), y.long().cuda()
+            X, y = X.to(device), y.to(device).long()
 
             # forward
             y_pred = model(X)
@@ -190,10 +213,6 @@ def _train(
             else:
                 lr_scheduler.step()
 
-        curr_lr = optimizer.param_groups[0]['lr']
-        if epoch % 10 == 0:
-            print_msg('Current learning rate is {}'.format(curr_lr))
-
         # record
         logger.add_scalar('training loss', avg_loss, epoch)
         logger.add_scalar('training accuracy', avg_acc, epoch)
@@ -207,11 +226,12 @@ def _train(
 
 
 def evaluate(model_path, test_dataset):
+    device = BASIC_CONFIG['DEVICE']
     num_classes = TRAIN_CONFIG['NUM_CLASSES']
     batch_size = TRAIN_CONFIG['BATCH_SIZE']
     num_workers = TRAIN_CONFIG['NUM_WORKERS']
 
-    trained_model = torch.load(model_path).cuda()
+    trained_model = torch.load(model_path).to(device)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     print('Running on Test set...')
@@ -227,6 +247,8 @@ def evaluate(model_path, test_dataset):
 
 
 def _eval(model, dataloader, c_matrix=None):
+    device = BASIC_CONFIG['DEVICE']
+
     model.eval()
     torch.set_grad_enabled(False)
 
@@ -234,7 +256,7 @@ def _eval(model, dataloader, c_matrix=None):
     correct = 0
     for test_data in dataloader:
         X, y = test_data
-        X, y = X.cuda(), y.long().cuda()
+        X, y = X.to(device), y.long().to(device)
 
         y_pred = model(X)
         total += y.size(0)

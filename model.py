@@ -3,27 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from config import NET_CONFIG
+from config import BASIC_CONFIG, NET_CONFIG
 
 
 def generate_model(network, num_classes, checkpoint, pretrained):
+    device = BASIC_CONFIG['DEVICE']
     if checkpoint:
-        model = torch.load(checkpoint)
+        model = torch.load(checkpoint).to(device)
         print('Load weights form {}'.format(checkpoint))
     else:
         if network not in NET_CONFIG.keys():
             raise Exception('NETWORK name should be one of NET_CONFIG keys in config.py.')
         net_config = NET_CONFIG[network]
 
-    model = MyModel(
-        net_config['MODEL'],
-        net_config['BOTTLENECK_SIZE'],
-        num_classes,
-        pretrained,
-        **net_config['OPTIONAL']
-    ).cuda()
+        model = MyModel(
+            net_config['MODEL'],
+            net_config['BOTTLENECK_SIZE'],
+            num_classes,
+            pretrained,
+            **net_config['OPTIONAL']
+        ).to(device)
 
-    if torch.cuda.device_count() > 1:
+    if device == 'cuda' and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
     return model

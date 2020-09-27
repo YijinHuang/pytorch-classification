@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from config import BASIC_CONFIG
 
 
 def quadratic_weighted_kappa(conf_mat):
@@ -33,7 +34,7 @@ def accuracy(predictions, targets, c_matrix=None):
     # avoid modifying origin predictions
     predicted = torch.tensor(
         [torch.argmax(p) for p in predictions]
-    ).cuda().long()
+    ).to(BASIC_CONFIG['DEVICE']).long()
 
     # update confusion matrix
     if c_matrix is not None:

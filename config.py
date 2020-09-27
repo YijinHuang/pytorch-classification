@@ -10,22 +10,25 @@ BASIC_CONFIG = {
     'PRETRAINED': True,  # load pretrained parameters in ImageNet
     'CHECKPOINT': None,  # load other pretrained model
     'NUM_CLASSES': 5,  # number of categories
-    'RANDOM_SEED': 0  # random seed for reproducibilty
+    'RANDOM_SEED': 0,  # random seed for reproducibilty
+    'DEVICE': 'cuda'  # 'cuda' / 'cpu'
 }
 
 DATA_CONFIG = {
     'MEAN': (0.485, 0.456, 0.406),  # for data normalization
     'STD': (0.229, 0.224, 0.225),
-    'SAMPLING_STRATEGY': 'SHUFFLE',  # SHUFFLE / BALANCE / DYNAMIC
-    'DECAY_RATE': 0.9,  # if SAMPLING_STRATEGY is DYNAMIC, sampling weight will decay from balance to shuffle
+    'SAMPLING_STRATEGY': 'SHUFFLE',  # 'SHUFFLE' / 'BALANCE' / 'DYNAMIC'
+    'SAMPLING_WEIGHTS_DECAY_RATE': 0.9,  # if SAMPLING_STRATEGY is DYNAMIC, sampling weight will decay from balance to shuffle
 }
 
 TRAIN_CONFIG = {
     'EPOCHS': 50,  # total training epochs
     'BATCH_SIZE': 16,  # training batch size
     'OPTIMIZER': 'SGD',  # SGD / ADAM
+    'LOSS_WEIGHT': None,  # None / 'BALANCE' / 'DYNAMIC' / list with shape NUM_CLASSES. Weights for loss function. Don't use it with weighted sampling!
+    'LOSS_WEIGHT_DECAY_RATE': 0.9,  # if LOSS_WEIGHTS is DYNAMIC, loss weight will decay from balance to no weights
     'LEARNING_RATE': 0.001,  # initial learning rate
-    'LR_SCHEDULER': 'COSINE',  # EXPONENTIAL / MULTIPLE_STEPS / COSINE / REDUCE_ON_PLATEAU, scheduler configurations are in SCHEDULER_CONFIG.
+    'LR_SCHEDULER': 'COSINE',  # 'EXPONENTIAL' / 'MULTIPLE_STEPS' / 'COSINE' / 'REDUCE_ON_PLATEAU', scheduler configurations are in SCHEDULER_CONFIG.
     'MOMENTUM': 0.9,  # momentum for SGD optimizer
     'WEIGHT_DECAY': 0.0005,  # weight decay for SGD and ADAM
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
