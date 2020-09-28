@@ -26,13 +26,13 @@ TRAIN_CONFIG = {
     'BATCH_SIZE': 16,  # training batch size
     'OPTIMIZER': 'SGD',  # SGD / ADAM
     'LOSS_WEIGHT': None,  # None / 'BALANCE' / 'DYNAMIC' / list with shape NUM_CLASSES. Weights for loss function. Don't use it with weighted sampling!
-    'LOSS_WEIGHT_DECAY_RATE': 0.9,  # if LOSS_WEIGHTS is DYNAMIC, loss weight will decay from balance to no weights
+    'LOSS_WEIGHT_DECAY_RATE': 0.9,  # if LOSS_WEIGHTS is DYNAMIC, loss weight will decay from balance to equivalent weights
     'LEARNING_RATE': 0.001,  # initial learning rate
     'LR_SCHEDULER': 'COSINE',  # 'EXPONENTIAL' / 'MULTIPLE_STEPS' / 'COSINE' / 'REDUCE_ON_PLATEAU', scheduler configurations are in SCHEDULER_CONFIG.
     'MOMENTUM': 0.9,  # momentum for SGD optimizer
     'WEIGHT_DECAY': 0.0005,  # weight decay for SGD and ADAM
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
-    'WARMUP_EPOCHS': 5,  # warmup epochs
+    'WARMUP_EPOCHS': 0,  # warmup epochs
     'NUM_WORKERS': 16,  # number of cpus used to load data at each step
     'SAVE_INTERVAL': 5,  # number of epochs to store model
     'PIN_MEMORY': True,  # enables fast data transfer to CUDA-enabled GPUs
@@ -91,6 +91,10 @@ SCHEDULER_CONFIG = {
     'MULTIPLE_STEPS': {
         'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
         'gamma': 0.1,  # Multiplicative factor of learning rate decay
+    },
+    'COSINE': {
+        'T_max': TRAIN_CONFIG['EPOCHS'] - TRAIN_CONFIG['WARMUP_EPOCHS'],  # Maximum number of iterations.
+        'eta_min': 0  # Minimum learning rate.
     },
     'REDUCE_ON_PLATEAU': {
         'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing

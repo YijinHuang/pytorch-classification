@@ -81,13 +81,11 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         raise Exception('Not implemented optimizer.')
 
     # define learning rate scheduler
-    epochs = TRAIN_CONFIG['EPOCHS']
     warmup_epochs = TRAIN_CONFIG['WARMUP_EPOCHS']
     scheduler_strategy = TRAIN_CONFIG['LR_SCHEDULER']
-    if scheduler_strategy in SCHEDULER_CONFIG.keys():
-        scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
+    scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
     if scheduler_strategy == 'COSINE':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
     elif scheduler_strategy == 'MULTIPLE_STEPS':
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
     elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
