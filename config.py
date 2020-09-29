@@ -2,7 +2,7 @@ import torchvision.models as models
 
 
 BASIC_CONFIG = {
-    'NETWORK': 'resnet50',  # shoud be one name in NET_CONFIG
+    'NETWORK': 'resnet50',  # shoud be one name in NET_CONFIG below
     'DATA_PATH': 'path/to/your/dataset',
     'DATA_INDEX': None,  # alternative way to build dataset
     'SAVE_PATH': 'path/to/save/folder',
@@ -28,7 +28,7 @@ TRAIN_CONFIG = {
     'LOSS_WEIGHT': None,  # None / 'BALANCE' / 'DYNAMIC' / list with shape NUM_CLASSES. Weights for loss function. Don't use it with weighted sampling!
     'LOSS_WEIGHT_DECAY_RATE': 0.9,  # if LOSS_WEIGHTS is DYNAMIC, loss weight will decay from balance to equivalent weights
     'LEARNING_RATE': 0.001,  # initial learning rate
-    'LR_SCHEDULER': 'COSINE',  # 'EXPONENTIAL' / 'MULTIPLE_STEPS' / 'COSINE' / 'REDUCE_ON_PLATEAU', scheduler configurations are in SCHEDULER_CONFIG.
+    'LR_SCHEDULER': 'COSINE',  # one str name in SCHEDULER_CONFIG below, scheduler configurations are in SCHEDULER_CONFIG.
     'MOMENTUM': 0.9,  # momentum for SGD optimizer
     'WEIGHT_DECAY': 0.0005,  # weight decay for SGD and ADAM
     'KAPPA_PRIOR': True,  # save model with higher kappa or higher accuracy in validation set
@@ -102,5 +102,9 @@ SCHEDULER_CONFIG = {
         'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
         'threshold': 1e-4,  # Threshold for measuring the new optimum
         'eps': 1e-5,  # Minimal decay applied to lr
+    },
+    'CLIPPED_COSINE': {
+        'T_max': TRAIN_CONFIG['EPOCHS'] - TRAIN_CONFIG['WARMUP_EPOCHS'],
+        'min_lr': 1e-4  # lr will stay as min_lr when achieve it
     }
 }

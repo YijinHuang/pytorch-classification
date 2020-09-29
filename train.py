@@ -5,12 +5,11 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from data_utils import ScheduledWeightedSampler, LossWeightsScheduler
-from metrics import accuracy, quadratic_weighted_kappa
-from config import BASIC_CONFIG, TRAIN_CONFIG, DATA_CONFIG, SCHEDULER_CONFIG
+from config import *
+from modules import *
+from metrics import *
 
 
 def train(model, train_dataset, val_dataset, save_path, logger):
@@ -90,8 +89,10 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
     elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
+    elif scheduler_strategy == 'EXPONENTIAL':
         lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'CLIPPED_COSINE':
+        lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
     else:
         lr_scheduler = None
 
@@ -274,60 +275,3 @@ def print_msg(msg, appendixs=[]):
         print(appendix)
     print('=' * max_len)
 
-
-# reference: https://github.com/clcarwin/focal_loss_pytorch/blob/master/focalloss.py
-class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, alpha=None, size_average=True):
-        super(FocalLoss, self).__init__()
-        self.gamma = gamma
-        self.alpha = alpha
-        if isinstance(alpha, (float, int)):
-            self.alpha = torch.Tensor([alpha, 1 - alpha])
-        if isinstance(alpha, list):
-            self.alpha = torch.Tensor(alpha)
-        self.size_average = size_average
-
-    def forward(self, input, target):
-        if input.dim() > 2:
-            input = input.view(input.size(0), input.size(1), -1)  # N,C,H,W => N,C,H*W
-            input = input.transpose(1, 2)    # N,C,H*W => N,H*W,C
-            input = input.contiguous().view(-1, input.size(2))   # N,H*W,C => N*H*W,C
-        target = target.view(-1, 1)
-
-        logpt = F.log_softmax(input)
-        logpt = logpt.gather(1, target)
-        logpt = logpt.view(-1)
-        pt = Variable(logpt.data.exp())
-
-        if self.alpha is not None:
-            if self.alpha.type() != input.data.type():
-                self.alpha = self.alpha.type_as(input.data)
-            at = self.alpha.gather(0, target.data.view(-1))
-            logpt = logpt * Variable(at)
-
-        loss = -1 * (1 - pt)**self.gamma * logpt
-        if self.size_average:
-            return loss.mean()
-        else:
-            return loss.sum()
-
-
-class WarmupLRScheduler():
-    def __init__(self, optimizer, warmup_epochs, initial_lr, verbose=True):
-        self.epoch = 0
-        self.optimizer = optimizer
-        self.warmup_epochs = warmup_epochs
-        self.initial_lr = initial_lr
-        self.verbose = verbose
-
-    def step(self):
-        if self.epoch <= self.warmup_epochs:
-            self.epoch += 1
-            curr_lr = (self.epoch / self.warmup_epochs) * self.initial_lr
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = curr_lr
-        if self.verbose:
-            print_msg('Warming up. Current learning rate is {}'.format(curr_lr))
-
-    def is_finish(self):
-        return self.epoch >= self.warmup_epochs

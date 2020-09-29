@@ -9,7 +9,7 @@
 
 - Update all hyperparameters in one file
 - Training progress monitoring and curve visualization
-- Weighted sampling for imbalance dataset
+- Weighted sampling and weighted loss for imbalance dataset
 - Kappa calculation for evaluating model on imbalance dataset
 - Different learning rate schedulers and warmup support
 - Data augmentation

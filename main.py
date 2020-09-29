@@ -7,10 +7,10 @@ import torch
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
-from model import generate_model
+from config import *
 from train import train, evaluate
+from modules import generate_model
 from data_utils import generate_dataset
-from config import BASIC_CONFIG, NET_CONFIG
 
 
 def main():
