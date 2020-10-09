@@ -1,6 +1,63 @@
 import torch
 import numpy as np
-from config import BASIC_CONFIG
+from config import BASIC_CONFIG, TRAIN_CONFIG
+
+
+class Estimator():
+    def __init__(self, criterion, num_classes, thresholds=None):
+        self.criterion = criterion
+        self.num_classes = num_classes
+        self.thresholds = [-0.5 + i for i in range(num_classes)] if not thresholds else thresholds
+
+        self.reset()  # intitialization
+
+    def update(self, predictions, targets):
+        targets = targets.data
+        predictions = self.to_prediction(predictions)
+
+        # update metrics
+        self.num_samples += len(predictions)
+        self.correct += (predictions == targets).sum().item()
+        for i, p in enumerate(predictions):
+            self.conf_mat[int(targets[i])][int(p.item())] += 1
+
+    def get_accuracy(self, digits=-1):
+        acc = self.correct / self.num_samples
+        acc = acc if digits == -1 else round(acc, digits)
+        return acc
+
+    def get_kappa(self, digits=-1):
+        kappa = quadratic_weighted_kappa(self.conf_mat)
+        kappa = kappa if digits == -1 else round(kappa, digits)
+        return kappa
+
+    def reset(self):
+        self.correct = 0
+        self.num_samples = 0
+        self.conf_mat = np.zeros((self.num_classes, self.num_classes), dtype=int)
+
+    def to_prediction(self, predictions):
+        predictions = predictions.data
+
+        if self.criterion == 'CE':
+            predictions = torch.tensor(
+                [torch.argmax(p) for p in predictions]
+            ).to(BASIC_CONFIG['device']).long()
+        elif self.criterion == 'MSE':
+            predictions = torch.tensor(
+                [self.classify(p.item()) for p in predictions]
+            ).cuda().float()
+        else:
+            raise NotImplementedError('Not implemented criterion.')
+
+        return predictions
+
+    def classify(self, predict):
+        thresholds = self.thresholds
+        predict = max(predict, thresholds[0])
+        for i in reversed(range(len(thresholds))):
+            if predict >= thresholds[i]:
+                return i
 
 
 def quadratic_weighted_kappa(conf_mat):
@@ -25,21 +82,3 @@ def quadratic_weighted_kappa(conf_mat):
     observed = (conf_mat * weighted_matrix).sum()
     expected = (expected_matrix * weighted_matrix).sum()
     return (observed - expected) / (1 - expected)
-
-
-def accuracy(predictions, targets, c_matrix=None):
-    predictions = predictions.data
-    targets = targets.data
-
-    # avoid modifying origin predictions
-    predicted = torch.tensor(
-        [torch.argmax(p) for p in predictions]
-    ).to(BASIC_CONFIG['DEVICE']).long()
-
-    # update confusion matrix
-    if c_matrix is not None:
-        for i, p in enumerate(predicted):
-            c_matrix[int(targets[i])][int(p.item())] += 1
-
-    correct = (predicted == targets).sum().item()
-    return correct / len(predicted)

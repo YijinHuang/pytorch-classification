@@ -10,22 +10,21 @@ from torch.utils.data.sampler import Sampler
 from config import *
 
 
-def generate_model(network, num_classes, checkpoint, pretrained):
-    device = BASIC_CONFIG['DEVICE']
+def generate_model(network, num_classes, checkpoint, pretrained=True):
+    device = BASIC_CONFIG['device']
     if checkpoint:
         model = torch.load(checkpoint).to(device)
         print('Load weights form {}'.format(checkpoint))
     else:
         if network not in NET_CONFIG.keys():
-            raise Exception('NETWORK name should be one of NET_CONFIG keys in config.py.')
-        net_config = NET_CONFIG[network]
+            raise NotImplementedError('Not implemented network.')
+        num_classes = 1 if TRAIN_CONFIG['criterion'] == 'MSE' else num_classes
 
         model = MyModel(
-            net_config['MODEL'],
-            net_config['BOTTLENECK_SIZE'],
+            NET_CONFIG[network],
             num_classes,
             pretrained,
-            **net_config['OPTIONAL']
+            **NET_CONFIG['args']
         ).to(device)
 
     if device == 'cuda' and torch.cuda.device_count() > 1:
@@ -35,15 +34,17 @@ def generate_model(network, num_classes, checkpoint, pretrained):
 
 
 class MyModel(nn.Module):
-    def __init__(self, backbone, bottleneck_size, num_classes, pretrained=False, **kwargs):
+    def __init__(self, backbone, num_classes, pretrained=False, **kwargs):
         super(MyModel, self).__init__()
 
-        self.net = backbone(pretrained=pretrained, **kwargs)
-        self.net.fc = nn.Linear(bottleneck_size, num_classes)
+        net = backbone(pretrained=pretrained, **kwargs)
+        net.fc = nn.Linear(net.fc.in_features, num_classes)
+        self.net = net
 
     def forward(self, x):
-        pred = self.net(x)
-        return pred
+        x = self.net(x)
+        x = x.squeeze()
+        return x
 
 
 # reference: https://github.com/clcarwin/focal_loss_pytorch/blob/master/focalloss.py

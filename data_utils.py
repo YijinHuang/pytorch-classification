@@ -10,7 +10,8 @@ from torchvision import transforms, datasets
 from config import DATA_CONFIG, DATA_AUGMENTATION
 
 
-def generate_dataset(data_path, input_size, pkl=None):
+def generate_dataset(data_path, pkl=None):
+    input_size = DATA_CONFIG['input_size']
     if pkl:
         datasets = generate_dataset_from_pickle(pkl, input_size)
     else:
@@ -54,29 +55,34 @@ def generate_dataset_from_pickle(pkl, input_size):
 
 def data_augmentation(input_size):
     data_aug = DATA_AUGMENTATION
+    mean, std = DATA_CONFIG['mean'], DATA_CONFIG['std']
+
     train_preprocess = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ColorJitter(
+            brightness=data_aug['brightness'],
+            contrast=data_aug['contrast']
+        ),
         transforms.RandomResizedCrop(
             size=(input_size, input_size),
             scale=data_aug['scale'],
-            ratio=data_aug['stretch_ratio']
+            ratio=data_aug['ratio']
         ),
         transforms.RandomAffine(
-            degrees=data_aug['ratation'],
-            translate=data_aug['translation_ratio'],
-            scale=None,
-            shear=None
+            degrees=data_aug['degrees'],
+            translate=data_aug['translate']
         ),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(DATA_CONFIG['MEAN'], DATA_CONFIG['STD']),
+        transforms.Normalize(mean, std)
     ])
 
     test_preprocess = transforms.Compose([
         transforms.Resize((input_size, input_size)),
         transforms.ToTensor(),
-        transforms.Normalize(DATA_CONFIG['MEAN'], DATA_CONFIG['STD']),
+        transforms.Normalize(mean, std)
     ])
+
     return train_preprocess, test_preprocess
 
 

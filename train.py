@@ -14,18 +14,18 @@ from metrics import *
 
 def train(model, train_dataset, val_dataset, save_path, logger):
     # define weighted_sampler
-    sampling_strategy = DATA_CONFIG['SAMPLING_STRATEGY']
-    if sampling_strategy == 'BALANCE':
+    sampling_strategy = DATA_CONFIG['sampling_strategy']
+    if sampling_strategy == 'balance':
         weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
-    elif sampling_strategy == 'DYNAMIC':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['SAMPLING_WEIGHTS_DECAY_RATE'])
+    elif sampling_strategy == 'dynamic':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['sampling_weights_decay_rate'])
     else:
         weighted_sampler = None
 
     # define data loader
-    batch_size = TRAIN_CONFIG['BATCH_SIZE']
-    num_workers = TRAIN_CONFIG['NUM_WORKERS']
-    pin_memory = TRAIN_CONFIG['PIN_MEMORY']
+    batch_size = TRAIN_CONFIG['batch_size']
+    num_workers = TRAIN_CONFIG['num_workers']
+    pin_memory = TRAIN_CONFIG['pin_memory']
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -45,23 +45,29 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     )
 
     # define loss and loss weights scheduler
+    criterion = TRAIN_CONFIG['criterion']
     weight = None
     loss_weight_scheduler = None
-    loss_weight = TRAIN_CONFIG['LOSS_WEIGHT']
-    if loss_weight == 'BALANCE':
-        loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
-    elif loss_weight == 'DYNAMIC':
-        loss_weight_scheduler = LossWeightsScheduler(train_dataset, TRAIN_CONFIG['LOSS_WEIGHT_DECAY_RATE'])
-    elif isinstance(loss_weight, list):
-        assert len(loss_weight) == len(train_dataset.classes)
-        weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=BASIC_CONFIG['DEVICE'])
-    cross_entropy = nn.CrossEntropyLoss(weight=weight)
+    loss_weight = TRAIN_CONFIG['loss_weight']
+    if criterion == 'CE':
+        if loss_weight == 'balance':
+            loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
+        elif loss_weight == 'dynamic':
+            loss_weight_scheduler = LossWeightsScheduler(train_dataset, TRAIN_CONFIG['loss_weight_decay_rate'])
+        elif isinstance(loss_weight, list):
+            assert len(loss_weight) == len(train_dataset.classes)
+            weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=BASIC_CONFIG['device'])
+        loss_function = nn.CrossEntropyLoss(weight=weight)
+    elif criterion == 'MSE':
+        loss_function = nn.MSELoss()
+    else:
+        raise NotImplementedError('Not implemented loss function.')
 
     # define optmizer
-    optimizer_strategy = TRAIN_CONFIG['OPTIMIZER']
-    learning_rate = TRAIN_CONFIG['LEARNING_RATE']
-    weight_decay = TRAIN_CONFIG['WEIGHT_DECAY']
-    momentum = TRAIN_CONFIG['MOMENTUM']
+    optimizer_strategy = TRAIN_CONFIG['optimizer']
+    learning_rate = TRAIN_CONFIG['learning_rate']
+    weight_decay = TRAIN_CONFIG['weight_decay']
+    momentum = TRAIN_CONFIG['momentum']
     if optimizer_strategy == 'SGD':
         optimizer = torch.optim.SGD(
             model.parameters(),
@@ -77,21 +83,21 @@ def train(model, train_dataset, val_dataset, save_path, logger):
             weight_decay=weight_decay
         )
     else:
-        raise Exception('Not implemented optimizer.')
+        raise NotImplementedError('Not implemented optimizer.')
 
     # define learning rate scheduler
-    warmup_epochs = TRAIN_CONFIG['WARMUP_EPOCHS']
-    scheduler_strategy = TRAIN_CONFIG['LR_SCHEDULER']
+    warmup_epochs = TRAIN_CONFIG['warmup_epochs']
+    scheduler_strategy = TRAIN_CONFIG['lr_scheduler']
     scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
-    if scheduler_strategy == 'COSINE':
+    if scheduler_strategy == 'cosine':
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'MULTIPLE_STEPS':
+    elif scheduler_strategy == 'multiple_steps':
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'REDUCE_ON_PLATEAU':
+    elif scheduler_strategy == 'reduce_on_plateau':
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'EXPONENTIAL':
+    elif scheduler_strategy == 'exponential':
         lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'CLIPPED_COSINE':
+    elif scheduler_strategy == 'clipped_cosine':
         lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
     else:
         lr_scheduler = None
@@ -106,7 +112,7 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         model,
         train_loader,
         val_loader,
-        cross_entropy,
+        loss_function,
         optimizer,
         save_path,
         logger,
@@ -130,15 +136,19 @@ def _train(
     warmup_scheduler=None,
     loss_weight_scheduler=None
 ):
-    device = BASIC_CONFIG['DEVICE']
-    epochs = TRAIN_CONFIG['EPOCHS']
-    num_classes = TRAIN_CONFIG['NUM_CLASSES']
-    kappa_prior = TRAIN_CONFIG['KAPPA_PRIOR']
+    device = BASIC_CONFIG['device']
+    epochs = TRAIN_CONFIG['epochs']
+    criterion = TRAIN_CONFIG['criterion']
+    num_classes = BASIC_CONFIG['num_classes']
+    kappa_prior = TRAIN_CONFIG['kappa_prior']
 
     # print configuration
     print_msg('Basic configuration: ', ['{}:\t{}'.format(k, v) for k, v in BASIC_CONFIG.items()])
     print_msg('Data configuration: ', ['{}:\t{}'.format(k, v) for k, v in DATA_CONFIG.items()])
     print_msg('Training configuration: ', ['{}:\t{}'.format(k, v) for k, v in TRAIN_CONFIG.items()])
+
+    # intitial estimator
+    estimator = Estimator(criterion, num_classes)
 
     # training
     max_indicator = 0
@@ -157,17 +167,18 @@ def _train(
         if warmup_scheduler and not warmup_scheduler.is_finish():
             warmup_scheduler.step()
 
+        # print learning rate
         curr_lr = optimizer.param_groups[0]['lr']
         if epoch % 10 == 0:
             print_msg('Current learning rate is {}'.format(curr_lr))
 
-        total = 0
-        correct = 0
         epoch_loss = 0
+        estimator.reset()
         progress = tqdm(enumerate(train_loader))
         for step, train_data in progress:
             X, y = train_data
-            X, y = X.to(device), y.to(device).long()
+            X, y = X.to(device), y.to(device)
+            y = y.long() if criterion == 'CE' else y.float()
 
             # forward
             y_pred = model(X)
@@ -180,19 +191,20 @@ def _train(
 
             # metrics
             epoch_loss += loss.item()
-            total += y.size(0)
-            correct += accuracy(y_pred, y) * y.size(0)
             avg_loss = epoch_loss / (step + 1)
-            avg_acc = correct / total
+            estimator.update(y_pred, y)
+            avg_acc = estimator.get_accuracy(4)
+            avg_kappa = estimator.get_kappa(4)
+
             progress.set_description(
-                'epoch: {}, loss: {:.6f}, acc: {:.4f}'
-                .format(epoch, avg_loss, avg_acc)
+                'epoch: {}, loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
+                .format(epoch, avg_loss, avg_acc, avg_kappa)
             )
 
         # validation performance
-        c_matrix = np.zeros((num_classes, num_classes), dtype=int)
-        acc = _eval(model, val_loader, c_matrix)
-        kappa = quadratic_weighted_kappa(c_matrix)
+        eval(model, val_loader, estimator)
+        acc = estimator.get_accuracy(4)
+        kappa = estimator.get_kappa(4)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
 
         # save model
@@ -202,12 +214,12 @@ def _train(
             max_indicator = indicator
             print_msg('Best in validation set. Model save at {}'.format(save_path))
 
-        if epoch % TRAIN_CONFIG['SAVE_INTERVAL'] == 0:
+        if epoch % TRAIN_CONFIG['save_interval'] == 0:
             torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
         if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
-            if TRAIN_CONFIG['LR_SCHEDULER'] == 'REDUCE_ON_PLATEAU':
+            if TRAIN_CONFIG['lr_scheduler'] == 'reduce_on_plateau':
                 lr_scheduler.step(avg_loss)
             else:
                 lr_scheduler.step()
@@ -215,6 +227,7 @@ def _train(
         # record
         logger.add_scalar('training loss', avg_loss, epoch)
         logger.add_scalar('training accuracy', avg_acc, epoch)
+        logger.add_scalar('training kappa', avg_kappa, epoch)
         logger.add_scalar('learning rate', curr_lr, epoch)
         logger.add_scalar('validation accuracy', acc, epoch)
         logger.add_scalar('validation kappa', kappa, epoch)
@@ -225,46 +238,45 @@ def _train(
 
 
 def evaluate(model_path, test_dataset):
-    device = BASIC_CONFIG['DEVICE']
-    num_classes = TRAIN_CONFIG['NUM_CLASSES']
-    batch_size = TRAIN_CONFIG['BATCH_SIZE']
-    num_workers = TRAIN_CONFIG['NUM_WORKERS']
+    device = BASIC_CONFIG['device']
+    criterion = TRAIN_CONFIG['criterion']
+    num_classes = BASIC_CONFIG['num_classes']
+    batch_size = TRAIN_CONFIG['batch_size']
+    num_workers = TRAIN_CONFIG['num_workers']
 
     trained_model = torch.load(model_path).to(device)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     print('Running on Test set...')
-    c_matrix = np.zeros((num_classes, num_classes), dtype=int)
-    test_acc = _eval(trained_model, test_loader, c_matrix)
+    estimator = Estimator(criterion, num_classes)
+    eval(trained_model, test_loader, estimator)
 
     print('========================================')
-    print('Finished! test acc: {}'.format(test_acc))
+    print('Finished! test acc: {}'.format(estimator.get_accuracy(4)))
     print('Confusion Matrix:')
-    print(c_matrix)
-    print('quadratic kappa: {}'.format(quadratic_weighted_kappa(c_matrix)))
+    print(estimator.conf_mat)
+    print('quadratic kappa: {}'.format(estimator.get_kappa(4)))
     print('========================================')
 
 
-def _eval(model, dataloader, c_matrix=None):
-    device = BASIC_CONFIG['DEVICE']
+def eval(model, dataloader, estimator):
+    device = BASIC_CONFIG['device']
+    criterion = TRAIN_CONFIG['criterion']
 
     model.eval()
     torch.set_grad_enabled(False)
 
-    total = 0
-    correct = 0
+    estimator.reset()
     for test_data in dataloader:
         X, y = test_data
-        X, y = X.to(device), y.long().to(device)
+        X, y = X.to(device), y.to(device)
+        y = y.long() if criterion == 'CE' else y.float()
 
         y_pred = model(X)
-        total += y.size(0)
-        correct += accuracy(y_pred, y, c_matrix) * y.size(0)
-    acc = round(correct / total, 4)
+        estimator.update(y_pred, y)
 
     model.train()
     torch.set_grad_enabled(True)
-    return acc
 
 
 def print_msg(msg, appendixs=[]):
@@ -274,4 +286,3 @@ def print_msg(msg, appendixs=[]):
     for appendix in appendixs:
         print(appendix)
     print('=' * max_len)
-

@@ -15,40 +15,39 @@ from data_utils import generate_dataset
 
 def main():
     # reproducibility
-    seed = BASIC_CONFIG['RANDOM_SEED']
+    seed = BASIC_CONFIG['random_seed']
     set_random_seed(seed)
 
     # create folder
-    save_path = BASIC_CONFIG['SAVE_PATH']
+    save_path = BASIC_CONFIG['save_path']
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
     # create folder
-    save_dir = BASIC_CONFIG['SAVE_PATH']
+    save_dir = BASIC_CONFIG['save_path']
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     # build model
-    network = BASIC_CONFIG['NETWORK']
+    network = BASIC_CONFIG['network']
     model = generate_model(
         network,
-        BASIC_CONFIG['NUM_CLASSES'],
-        BASIC_CONFIG['CHECKPOINT'],
-        BASIC_CONFIG['PRETRAINED']
+        BASIC_CONFIG['num_classes'],
+        BASIC_CONFIG['checkpoint'],
+        BASIC_CONFIG['pretrained']
     )
 
     # load dataset
     train_dataset, test_dataset, val_dataset = generate_dataset(
-        BASIC_CONFIG['DATA_PATH'],
-        NET_CONFIG[network]['INPUT_SIZE'],
-        BASIC_CONFIG['DATA_INDEX']
+        BASIC_CONFIG['data_path'],
+        BASIC_CONFIG['data_index']
     )
 
     # create logger
-    record_path = BASIC_CONFIG['RECORD_PATH']
+    record_path = BASIC_CONFIG['record_path']
     if os.path.exists(record_path):
         shutil.rmtree(record_path)
-    logger = SummaryWriter(BASIC_CONFIG['RECORD_PATH'])
+    logger = SummaryWriter(BASIC_CONFIG['record_path'])
 
     # train
     train(
