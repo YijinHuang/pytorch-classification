@@ -68,12 +68,13 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     learning_rate = TRAIN_CONFIG['learning_rate']
     weight_decay = TRAIN_CONFIG['weight_decay']
     momentum = TRAIN_CONFIG['momentum']
+    nesterov = TRAIN_CONFIG['nesterov']
     if optimizer_strategy == 'SGD':
         optimizer = torch.optim.SGD(
             model.parameters(),
             lr=learning_rate,
             momentum=momentum,
-            nesterov=True,
+            nesterov=nesterov,
             weight_decay=weight_decay
         )
     elif optimizer_strategy == 'ADAM':
@@ -88,17 +89,20 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     # define learning rate scheduler
     warmup_epochs = TRAIN_CONFIG['warmup_epochs']
     scheduler_strategy = TRAIN_CONFIG['lr_scheduler']
-    scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
-    if scheduler_strategy == 'cosine':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'multiple_steps':
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'reduce_on_plateau':
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'exponential':
-        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
-    elif scheduler_strategy == 'clipped_cosine':
-        lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
+    if scheduler_strategy is not None:
+        scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
+        if scheduler_strategy == 'cosine':
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'multiple_steps':
+            lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'reduce_on_plateau':
+            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'exponential':
+            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'clipped_cosine':
+            lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
+        else:
+            raise NotImplementedError('Not implemented learning rate scheduler.')
     else:
         lr_scheduler = None
 
@@ -167,11 +171,6 @@ def _train(
         if warmup_scheduler and not warmup_scheduler.is_finish():
             warmup_scheduler.step()
 
-        # print learning rate
-        curr_lr = optimizer.param_groups[0]['lr']
-        if epoch % 10 == 0:
-            print_msg('Current learning rate is {}'.format(curr_lr))
-
         epoch_loss = 0
         estimator.reset()
         progress = tqdm(enumerate(train_loader))
@@ -193,8 +192,8 @@ def _train(
             epoch_loss += loss.item()
             avg_loss = epoch_loss / (step + 1)
             estimator.update(y_pred, y)
-            avg_acc = estimator.get_accuracy(4)
-            avg_kappa = estimator.get_kappa(4)
+            avg_acc = estimator.get_accuracy(6)
+            avg_kappa = estimator.get_kappa(6)
 
             progress.set_description(
                 'epoch: {}, loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
@@ -203,8 +202,8 @@ def _train(
 
         # validation performance
         eval(model, val_loader, estimator)
-        acc = estimator.get_accuracy(4)
-        kappa = estimator.get_kappa(4)
+        acc = estimator.get_accuracy(6)
+        kappa = estimator.get_kappa(6)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
 
         # save model
@@ -218,6 +217,7 @@ def _train(
             torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
+        curr_lr = optimizer.param_groups[0]['lr']
         if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
             if TRAIN_CONFIG['lr_scheduler'] == 'reduce_on_plateau':
                 lr_scheduler.step(avg_loss)
@@ -252,10 +252,10 @@ def evaluate(model_path, test_dataset):
     eval(trained_model, test_loader, estimator)
 
     print('========================================')
-    print('Finished! test acc: {}'.format(estimator.get_accuracy(4)))
+    print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
     print('Confusion Matrix:')
     print(estimator.conf_mat)
-    print('quadratic kappa: {}'.format(estimator.get_kappa(4)))
+    print('quadratic kappa: {}'.format(estimator.get_kappa(6)))
     print('========================================')
 
 

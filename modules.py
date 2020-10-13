@@ -20,7 +20,7 @@ def generate_model(network, num_classes, checkpoint, pretrained=True):
             raise NotImplementedError('Not implemented network.')
         num_classes = 1 if TRAIN_CONFIG['criterion'] == 'MSE' else num_classes
 
-        model = MyModel(
+        model = CustomizedModel(
             NET_CONFIG[network],
             num_classes,
             pretrained,
@@ -33,9 +33,9 @@ def generate_model(network, num_classes, checkpoint, pretrained=True):
     return model
 
 
-class MyModel(nn.Module):
+class CustomizedModel(nn.Module):
     def __init__(self, backbone, num_classes, pretrained=False, **kwargs):
-        super(MyModel, self).__init__()
+        super(CustomizedModel, self).__init__()
 
         net = backbone(pretrained=pretrained, **kwargs)
         net.fc = nn.Linear(net.fc.in_features, num_classes)

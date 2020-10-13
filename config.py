@@ -32,6 +32,7 @@ TRAIN_CONFIG = {
     'learning_rate': 0.001,  # initial learning rate
     'lr_scheduler': 'cosine',  # one str name in SCHEDULER_CONFIG below, scheduler configurations are in SCHEDULER_CONFIG.
     'momentum': 0.9,  # momentum for SGD optimizer
+    'nesterov': True,  # nesterov for SGD optimizer
     'weight_decay': 0.0005,  # weight decay for SGD and ADAM
     'kappa_prior': True,  # save model with higher kappa or higher accuracy in validation set
     'warmup_epochs': 0,  # warmup epochs
