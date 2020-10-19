@@ -91,6 +91,7 @@ class DatasetFromDict(Dataset):
         super(DatasetFromDict, self).__init__()
         self.imgs = imgs
         self.transform = transform
+        self.classes = list(range(max(imgs.values())))
 
     def __len__(self):
         return len(self.imgs)
