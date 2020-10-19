@@ -57,14 +57,14 @@ your_data_dict = {
         'path/to/image3': 1,
         'path/to/image4': 2,
         ...
-	}
+    },
     'test': {
         'path/to/image5': 0,
         ...
-    }
+    },
     'val': {
         'path/to/image6': 0,
-        ...        
+        ...
     }
 }
 ```
