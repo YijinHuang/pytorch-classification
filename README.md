@@ -28,19 +28,19 @@ Organize your images as following:
 
 ```
 ├── your_data_dir
-	├── train
-		├── class1
-			├── image1.jpg
-			├── image2.jpg
-			├── ...
-		├── class2
-			├── image3.jpg
-			├── image4.jpg
-			├── ...
-		├── class3
-		├── ...
-	├── val
-	├── test
+    ├── train
+        ├── class1
+            ├── image1.jpg
+            ├── image2.jpg
+            ├── ...
+        ├── class2
+            ├── image3.jpg
+            ├── image4.jpg
+            ├── ...
+        ├── class3
+        ├── ...
+    ├── val
+    ├── test
 ```
 
 Here, `val` and `test` directory have the same structure of  `train`.  Then Replace the value of 'data_path' in BASIC_CONFIG in `config.py` with path to your_data_dir and keep 'data_index' as None.
@@ -51,7 +51,7 @@ Define a dict as following:
 
 ```python
 your_data_dict = {
-	'train': {
+    'train': {
         'path/to/image1': 0, # use int. to represent the class of images (start from 0)
         'path/to/image2': 0,
         'path/to/image3': 1,
