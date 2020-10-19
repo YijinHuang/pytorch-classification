@@ -23,11 +23,6 @@ def main():
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    # create folder
-    save_dir = BASIC_CONFIG['save_path']
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
     # build model
     network = BASIC_CONFIG['network']
     model = generate_model(
