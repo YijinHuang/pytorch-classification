@@ -51,21 +51,21 @@ Define a dict as following:
 
 ```python
 your_data_dict = {
-    'train': {
-        'path/to/image1': 0, # use int. to represent the class of images (start from 0)
-        'path/to/image2': 0,
-        'path/to/image3': 1,
-        'path/to/image4': 2,
+    'train': [
+        ('path/to/image1', 0), # use int. to represent the class of images (start from 0)
+        ('path/to/image2', 0),
+        ('path/to/image3', 1),
+        ('path/to/image4', 2),
         ...
-    },
-    'test': {
-        'path/to/image5': 0,
+    ],
+    'test': [
+        ('path/to/image5', 0),
         ...
-    },
-    'val': {
-        'path/to/image6': 0,
+    ],
+    'val': [
+        ('path/to/image6', 0),
         ...
-    }
+    ]
 }
 ```
 
