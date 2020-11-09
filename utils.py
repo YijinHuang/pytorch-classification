@@ -35,11 +35,14 @@ def mean_and_std(train_dataset, batch_size, num_workers):
     for samples in tqdm(loader):
         X, _ = samples
         channel_mean += X.mean((2, 3)).sum(0)
-        channel_std += X.std((2, 3)).sum(0)
         num_samples += X.size(0)
-
     channel_mean /= num_samples
-    channel_std /= num_samples
+
+    for samples in tqdm(loader):
+        X, _ = samples
+        batch_samples = X.size(0)
+        X = X.permute(0, 2, 3, 1).reshape(-1, 3)
+        channel_std += ((X - channel_mean) ** 2).mean(0) * batch_samples
+    channel_std = torch.sqrt(channel_std / num_samples)
 
     return channel_mean.tolist(), channel_std.tolist()
-
