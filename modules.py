@@ -6,8 +6,7 @@ import torchvision.models as models
 from torch.autograd import Variable
 from torch.utils.data.sampler import Sampler
 
-
-from config import *
+from config import BASIC_CONFIG, TRAIN_CONFIG, NET_CONFIG
 
 
 def generate_model(network, num_classes, checkpoint, pretrained=True):
@@ -21,6 +20,7 @@ def generate_model(network, num_classes, checkpoint, pretrained=True):
         num_classes = 1 if TRAIN_CONFIG['criterion'] == 'MSE' else num_classes
 
         model = CustomizedModel(
+            network,
             NET_CONFIG[network],
             num_classes,
             pretrained,
@@ -34,11 +34,38 @@ def generate_model(network, num_classes, checkpoint, pretrained=True):
 
 
 class CustomizedModel(nn.Module):
-    def __init__(self, backbone, num_classes, pretrained=False, **kwargs):
+    def __init__(self, name, backbone, num_classes, pretrained=False, **kwargs):
         super(CustomizedModel, self).__init__()
 
         net = backbone(pretrained=pretrained, **kwargs)
-        net.fc = nn.Linear(net.fc.in_features, num_classes)
+        if 'resnet' in name or 'resnext' in name or 'shufflenet' in name:
+            net.fc = nn.Linear(net.fc.in_features, num_classes)
+        elif 'densenet' in name:
+            net.classifier = nn.Linear(net.classifier.in_features, num_classes)
+        elif 'vgg' in name:
+            net.classifier = nn.Sequential(
+                nn.Linear(512 * 7 * 7, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, num_classes),
+            )
+        elif 'mobilenet' in name:
+            net.classifier = nn.Sequential(
+                nn.Dropout(0.2),
+                nn.Linear(net.last_channel, num_classes),
+            )
+        elif 'squeezenet' in name:
+            net.classifier = nn.Sequential(
+                nn.Dropout(p=0.5),
+                nn.Conv2d(512, num_classes, kernel_size=1),
+                nn.ReLU(inplace=True),
+                nn.AdaptiveAvgPool2d((1, 1))
+            )
+        else:
+            raise NotImplementedError('Not implemented network.')
         self.net = net
 
     def forward(self, x):

@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from config import *
 from modules import *
-from metrics import *
+from metrics import Estimator
 
 
 def train(model, train_dataset, val_dataset, save_path, logger):
@@ -152,7 +152,7 @@ def _train(
     print_msg('Training configuration: ', ['{}:\t{}'.format(k, v) for k, v in TRAIN_CONFIG.items()])
 
     # intitial estimator
-    estimator = Estimator(criterion, num_classes)
+    estimator = Estimator(criterion, num_classes, device)
 
     # training
     max_indicator = 0
@@ -248,7 +248,7 @@ def evaluate(model_path, test_dataset):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     print('Running on Test set...')
-    estimator = Estimator(criterion, num_classes)
+    estimator = Estimator(criterion, num_classes, device)
     eval(trained_model, test_loader, estimator)
 
     print('========================================')

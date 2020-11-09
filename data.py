@@ -3,19 +3,18 @@ import random
 import pickle
 
 import torch
+import numpy as np
+from tqdm import tqdm
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 
-from config import DATA_CONFIG, DATA_AUGMENTATION
 
-
-def generate_dataset(data_path, pkl=None):
-    input_size = DATA_CONFIG['input_size']
+def generate_dataset(data_config, data_path, pkl=None):
     if pkl:
-        datasets = generate_dataset_from_pickle(pkl, input_size)
+        datasets = generate_dataset_from_pickle(pkl, data_config)
     else:
-        datasets = generate_dataset_from_folder(data_path, input_size)
+        datasets = generate_dataset_from_folder(data_path, data_config)
 
     train_dataset, test_dataset, val_dataset = datasets
     print('Dataset Loaded.')
@@ -26,12 +25,12 @@ def generate_dataset(data_path, pkl=None):
     return datasets
 
 
-def generate_dataset_from_folder(data_path, input_size):
+def generate_dataset_from_folder(data_path, data_config):
     train_path = os.path.join(data_path, 'train')
     test_path = os.path.join(data_path, 'test')
     val_path = os.path.join(data_path, 'val')
 
-    train_preprocess, test_preprocess = data_augmentation(input_size)
+    train_preprocess, test_preprocess = data_augmentation(data_config)
 
     train_dataset = datasets.ImageFolder(train_path, train_preprocess)
     test_dataset = datasets.ImageFolder(test_path, test_preprocess)
@@ -40,11 +39,11 @@ def generate_dataset_from_folder(data_path, input_size):
     return train_dataset, test_dataset, val_dataset
 
 
-def generate_dataset_from_pickle(pkl, input_size):
+def generate_dataset_from_pickle(pkl, data_config):
     data = pickle.load(open(pkl, 'rb'))
     train_set, test_set, val_set = data['train'], data['test'], data['val']
 
-    train_preprocess, test_preprocess = data_augmentation(input_size)
+    train_preprocess, test_preprocess = data_augmentation(data_config)
 
     train_dataset = DatasetFromDict(train_set, train_preprocess)
     test_dataset = DatasetFromDict(test_set, test_preprocess)
@@ -53,9 +52,10 @@ def generate_dataset_from_pickle(pkl, input_size):
     return train_dataset, test_dataset, val_dataset
 
 
-def data_augmentation(input_size):
-    data_aug = DATA_AUGMENTATION
-    mean, std = DATA_CONFIG['mean'], DATA_CONFIG['std']
+def data_augmentation(data_config):
+    data_aug = data_config['data_augmentation']
+    input_size = data_config['input_size']
+    mean, std = data_config['mean'], data_config['std']
 
     train_preprocess = transforms.Compose([
         transforms.RandomHorizontalFlip(),

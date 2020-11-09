@@ -1,12 +1,12 @@
 import torch
 import numpy as np
-from config import BASIC_CONFIG, TRAIN_CONFIG
 
 
 class Estimator():
-    def __init__(self, criterion, num_classes, thresholds=None):
+    def __init__(self, criterion, num_classes, device='cpu', thresholds=None):
         self.criterion = criterion
         self.num_classes = num_classes
+        self.device = device
         self.thresholds = [-0.5 + i for i in range(num_classes)] if not thresholds else thresholds
 
         self.reset()  # intitialization
@@ -42,11 +42,11 @@ class Estimator():
         if self.criterion == 'CE':
             predictions = torch.tensor(
                 [torch.argmax(p) for p in predictions]
-            ).to(BASIC_CONFIG['device']).long()
+            ).to(self.device).long()
         elif self.criterion == 'MSE':
             predictions = torch.tensor(
                 [self.classify(p.item()) for p in predictions]
-            ).cuda().float()
+            ).to(self.device).float()
         else:
             raise NotImplementedError('Not implemented criterion.')
 
