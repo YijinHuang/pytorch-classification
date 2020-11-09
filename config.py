@@ -3,11 +3,11 @@ from utils import auto_statistics
 
 
 BASIC_CONFIG = {
-    'network': 'shufflenet_1_0',  # shoud be one name in NET_CONFIG below
-    'data_path': '../../dataset/split_eyepacs_hq_512',
+    'network': 'resnet50',  # shoud be one name in NET_CONFIG below
+    'data_path': 'path/to/your/dataset',
     'data_index': None,  # alternative way to build dataset
-    'save_path': '../../result/eyepacs_small/temp',
-    'record_path': '../../result/eyepacs_small/auto/temp',
+    'save_path': 'path/to/save/folder',
+    'record_path': 'path/to/save/log/folder',
     'pretrained': True,  # load pretrained parameters in ImageNet
     'checkpoint': None,  # load other pretrained model
     'num_classes': 5,  # number of categories
