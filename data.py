@@ -10,49 +10,30 @@ from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 
 
-def generate_dataset(data_config, data_path, pkl=None):
-    if pkl:
-        datasets = generate_dataset_from_pickle(pkl, data_config)
-    else:
-        datasets = generate_dataset_from_folder(data_path, data_config)
-
-    train_dataset, test_dataset, val_dataset = datasets
-    print('Dataset Loaded.')
-    print('Categories:\t{}'.format(len(train_dataset.classes)))
-    print('Training:\t{}'.format(len(train_dataset)))
-    print('Validation:\t{}'.format(len(val_dataset)))
-    print('Test:\t\t{}'.format(len(test_dataset)))
-    return datasets
-
-
-def generate_dataset_from_folder(data_path, data_config):
+def generate_dataset_from_folder(data_path, data_config, train_transform, test_transform):
     train_path = os.path.join(data_path, 'train')
     test_path = os.path.join(data_path, 'test')
     val_path = os.path.join(data_path, 'val')
 
-    train_preprocess, test_preprocess = data_augmentation(data_config)
-
-    train_dataset = datasets.ImageFolder(train_path, train_preprocess)
-    test_dataset = datasets.ImageFolder(test_path, test_preprocess)
-    val_dataset = datasets.ImageFolder(val_path, test_preprocess)
+    train_dataset = datasets.ImageFolder(train_path, train_transform)
+    test_dataset = datasets.ImageFolder(test_path, test_transform)
+    val_dataset = datasets.ImageFolder(val_path, test_transform)
 
     return train_dataset, test_dataset, val_dataset
 
 
-def generate_dataset_from_pickle(pkl, data_config):
+def generate_dataset_from_pickle(pkl, data_config, train_transform, test_transform):
     data = pickle.load(open(pkl, 'rb'))
     train_set, test_set, val_set = data['train'], data['test'], data['val']
 
-    train_preprocess, test_preprocess = data_augmentation(data_config)
-
-    train_dataset = DatasetFromDict(train_set, train_preprocess)
-    test_dataset = DatasetFromDict(test_set, test_preprocess)
-    val_dataset = DatasetFromDict(val_set, test_preprocess)
+    train_dataset = DatasetFromDict(train_set, train_transform)
+    test_dataset = DatasetFromDict(test_set, test_transform)
+    val_dataset = DatasetFromDict(val_set, test_transform)
 
     return train_dataset, test_dataset, val_dataset
 
 
-def data_augmentation(data_config):
+def data_transforms(data_config):
     data_aug = data_config['data_augmentation']
     input_size = data_config['input_size']
     mean, std = data_config['mean'], data_config['std']

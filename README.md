@@ -1,7 +1,6 @@
 ## Pytorch Classification
 
-- A general, feasible and extensible framework for classification tasks.
-- Easy to transfer to your project.
+- A general, feasible and extensible framework for 2D image classification.
 
 
 
@@ -24,7 +23,7 @@
 
 - Folder-form dataset:
 
-Organize your images as following:
+Organize your images as follows:
 
 ```
 ├── your_data_dir
@@ -47,7 +46,7 @@ Here, `val` and `test` directory have the same structure of  `train`.  Then Repl
 
 - Dict-form dataset:
 
-Define a dict as following:
+Define a dict as follows:
 
 ```python
 your_data_dict = {

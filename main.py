@@ -6,14 +6,18 @@ import shutil
 import torch
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from pprint import pprint
 
+from config import *
+from metrics import Estimator
 from train import train, evaluate
-from data import generate_dataset
-from modules import generate_model
-from config import BASIC_CONFIG, DATA_CONFIG
+from utils import print_msg, generate_dataset, generate_model
 
 
 def main():
+    # print configuration
+    print_config()
+
     # reproducibility
     seed = BASIC_CONFIG['random_seed']
     set_random_seed(seed)
@@ -25,14 +29,20 @@ def main():
 
     # build model
     network = BASIC_CONFIG['network']
+    device = BASIC_CONFIG['device']
+    criterion = TRAIN_CONFIG['criterion']
+    num_classes = BASIC_CONFIG['num_classes']
+    out_features = 1 if criterion == 'MSE' else num_classes
     model = generate_model(
         network,
-        BASIC_CONFIG['num_classes'],
-        BASIC_CONFIG['checkpoint'],
-        BASIC_CONFIG['pretrained']
+        out_features,
+        NET_CONFIG,
+        device,
+        BASIC_CONFIG['pretrained'],
+        BASIC_CONFIG['checkpoint']
     )
 
-    # load dataset
+    # create dataset
     train_dataset, test_dataset, val_dataset = generate_dataset(
         DATA_CONFIG,
         BASIC_CONFIG['data_path'],
@@ -45,20 +55,27 @@ def main():
         shutil.rmtree(record_path)
     logger = SummaryWriter(BASIC_CONFIG['record_path'])
 
-    # train
+    # create estimator and then train
+    estimator = Estimator(criterion, num_classes, device)
     train(
         model=model,
+        train_config=TRAIN_CONFIG,
+        data_config=DATA_CONFIG,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         save_path=save_path,
+        estimator=estimator,
+        device=device,
         logger=logger
     )
 
     # test
     print('This is the performance of the best validation model:')
-    evaluate(os.path.join(save_path, 'best_validation_model.pt'), test_dataset)
+    model_path = os.path.join(save_path, 'best_validation_model.pt')
+    evaluate(model_path, TRAIN_CONFIG, test_dataset, num_classes, estimator, device)
     print('This is the performance of the final model:')
-    evaluate(os.path.join(save_path, 'final_model.pt'), test_dataset)
+    model_path = os.path.join(save_path, 'final_model.pt')
+    evaluate(model_path, TRAIN_CONFIG, test_dataset, num_classes, estimator, device)
 
 
 def set_random_seed(seed):
@@ -67,6 +84,17 @@ def set_random_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
+
+
+def print_config():
+    print('=========================')
+    print('===Basic configuration===')
+    pprint(BASIC_CONFIG, sort_dicts=False)
+    print('===Data configuration===')
+    pprint(DATA_CONFIG, sort_dicts=False)
+    print('===Training configuration===')
+    pprint(TRAIN_CONFIG, sort_dicts=False)
+    print('========================')
 
 
 if __name__ == '__main__':

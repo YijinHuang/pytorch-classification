@@ -6,7 +6,58 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from data import DatasetFromDict
+from modules import CustomizedModel
+from data import generate_dataset_from_pickle, generate_dataset_from_folder, DatasetFromDict, data_transforms
+
+
+def generate_dataset(data_config, data_path, pkl=None, batch_size=16, num_workers=1):
+    if data_config['mean'] == 'auto' or data_config['std'] == 'auto':
+        mean, std = auto_statistics(data_path, pkl, batch_size, num_workers)
+        data_config['mean'] = mean
+        data_config['std'] = std
+        print('=========================')
+        print('Statistics of training set')
+        print('mean: {}'.format(mean))
+        print('std: {}'.format(std))
+        print('=========================')
+
+    train_tf, test_tf = data_transforms(data_config)
+    if pkl:
+        datasets = generate_dataset_from_pickle(pkl, data_config, train_tf, test_tf)
+    else:
+        datasets = generate_dataset_from_folder(data_path, data_config, train_tf, test_tf)
+
+    train_dataset, test_dataset, val_dataset = datasets
+    print('=========================')
+    print('Dataset Loaded.')
+    print('Categories:\t{}'.format(len(train_dataset.classes)))
+    print('Training:\t{}'.format(len(train_dataset)))
+    print('Validation:\t{}'.format(len(val_dataset)))
+    print('Test:\t\t{}'.format(len(test_dataset)))
+    print('=========================')
+    return datasets
+
+
+def generate_model(network, out_features, net_config, device, pretrained=True, checkpoint=None):
+    if checkpoint:
+        model = torch.load(checkpoint).to(device)
+        print('Load weights form {}'.format(checkpoint))
+    else:
+        if network not in net_config.keys():
+            raise NotImplementedError('Not implemented network.')
+
+        model = CustomizedModel(
+            network,
+            net_config[network],
+            out_features,
+            pretrained,
+            **net_config['args']
+        ).to(device)
+
+    if device == 'cuda' and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
+
+    return model
 
 
 def auto_statistics(data_path, data_index, batch_size, num_workers):
@@ -46,3 +97,12 @@ def mean_and_std(train_dataset, batch_size, num_workers):
     channel_std = torch.sqrt(channel_std / num_samples)
 
     return channel_mean.tolist(), channel_std.tolist()
+
+
+def print_msg(msg, appendixs=[]):
+    max_len = len(max([msg, *appendixs], key=len))
+    print('=' * max_len)
+    print(msg)
+    for appendix in appendixs:
+        print(appendix)
+    print('=' * max_len)

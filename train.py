@@ -7,25 +7,25 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from config import *
 from modules import *
+from utils import print_msg
 from metrics import Estimator
 
 
-def train(model, train_dataset, val_dataset, save_path, logger):
+def train(model, train_config, data_config, train_dataset, val_dataset, save_path, estimator, device, logger=None):
     # define weighted_sampler
-    sampling_strategy = DATA_CONFIG['sampling_strategy']
+    sampling_strategy = data_config['sampling_strategy']
     if sampling_strategy == 'balance':
         weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
     elif sampling_strategy == 'dynamic':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, DATA_CONFIG['sampling_weights_decay_rate'])
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, data_config['sampling_weights_decay_rate'])
     else:
         weighted_sampler = None
 
     # define data loader
-    batch_size = TRAIN_CONFIG['batch_size']
-    num_workers = TRAIN_CONFIG['num_workers']
-    pin_memory = TRAIN_CONFIG['pin_memory']
+    batch_size = train_config['batch_size']
+    num_workers = train_config['num_workers']
+    pin_memory = train_config['pin_memory']
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -45,18 +45,18 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     )
 
     # define loss and loss weights scheduler
-    criterion = TRAIN_CONFIG['criterion']
+    criterion = train_config['criterion']
     weight = None
     loss_weight_scheduler = None
-    loss_weight = TRAIN_CONFIG['loss_weight']
+    loss_weight = train_config['loss_weight']
     if criterion == 'CE':
         if loss_weight == 'balance':
             loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
         elif loss_weight == 'dynamic':
-            loss_weight_scheduler = LossWeightsScheduler(train_dataset, TRAIN_CONFIG['loss_weight_decay_rate'])
+            loss_weight_scheduler = LossWeightsScheduler(train_dataset, train_config['loss_weight_decay_rate'])
         elif isinstance(loss_weight, list):
             assert len(loss_weight) == len(train_dataset.classes)
-            weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=BASIC_CONFIG['device'])
+            weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=device)
         loss_function = nn.CrossEntropyLoss(weight=weight)
     elif criterion == 'MSE':
         loss_function = nn.MSELoss()
@@ -64,11 +64,11 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         raise NotImplementedError('Not implemented loss function.')
 
     # define optmizer
-    optimizer_strategy = TRAIN_CONFIG['optimizer']
-    learning_rate = TRAIN_CONFIG['learning_rate']
-    weight_decay = TRAIN_CONFIG['weight_decay']
-    momentum = TRAIN_CONFIG['momentum']
-    nesterov = TRAIN_CONFIG['nesterov']
+    optimizer_strategy = train_config['optimizer']
+    learning_rate = train_config['learning_rate']
+    weight_decay = train_config['weight_decay']
+    momentum = train_config['momentum']
+    nesterov = train_config['nesterov']
     if optimizer_strategy == 'SGD':
         optimizer = torch.optim.SGD(
             model.parameters(),
@@ -87,10 +87,11 @@ def train(model, train_dataset, val_dataset, save_path, logger):
         raise NotImplementedError('Not implemented optimizer.')
 
     # define learning rate scheduler
-    warmup_epochs = TRAIN_CONFIG['warmup_epochs']
-    scheduler_strategy = TRAIN_CONFIG['lr_scheduler']
-    if scheduler_strategy is not None:
-        scheduler_config = SCHEDULER_CONFIG[scheduler_strategy]
+    warmup_epochs = train_config['warmup_epochs']
+    scheduler_strategy = train_config['lr_scheduler']
+    scheduler_config = train_config['scheduler_config']
+    if scheduler_strategy in scheduler_config.keys():
+        scheduler_config = scheduler_config[scheduler_strategy]
         if scheduler_strategy == 'cosine':
             lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
         elif scheduler_strategy == 'multiple_steps':
@@ -101,8 +102,6 @@ def train(model, train_dataset, val_dataset, save_path, logger):
             lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
         elif scheduler_strategy == 'clipped_cosine':
             lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
-        else:
-            raise NotImplementedError('Not implemented learning rate scheduler.')
     else:
         lr_scheduler = None
 
@@ -111,53 +110,10 @@ def train(model, train_dataset, val_dataset, save_path, logger):
     else:
         warmup_scheduler = None
 
-    # train
-    _train(
-        model,
-        train_loader,
-        val_loader,
-        loss_function,
-        optimizer,
-        save_path,
-        logger,
-        weighted_sampler,
-        lr_scheduler,
-        warmup_scheduler,
-        loss_weight_scheduler
-    )
-
-
-def _train(
-    model,
-    train_loader,
-    val_loader,
-    loss_function,
-    optimizer,
-    save_path,
-    logger=None,
-    weighted_sampler=None,
-    lr_scheduler=None,
-    warmup_scheduler=None,
-    loss_weight_scheduler=None
-):
-    device = BASIC_CONFIG['device']
-    epochs = TRAIN_CONFIG['epochs']
-    criterion = TRAIN_CONFIG['criterion']
-    num_classes = BASIC_CONFIG['num_classes']
-    kappa_prior = TRAIN_CONFIG['kappa_prior']
-
-    # print configuration
-    print_msg('Basic configuration: ', ['{}:\t{}'.format(k, v) for k, v in BASIC_CONFIG.items()])
-    print_msg('Data configuration: ', ['{}:\t{}'.format(k, v) for k, v in DATA_CONFIG.items()])
-    print_msg('Training configuration: ', ['{}:\t{}'.format(k, v) for k, v in TRAIN_CONFIG.items()])
-
-    # intitial estimator
-    estimator = Estimator(criterion, num_classes, device)
-
-    # training
+    # start training
     max_indicator = 0
     model.train()
-    for epoch in range(1, epochs + 1):
+    for epoch in range(1, train_config['epochs'] + 1):
         # resampling weight update
         if weighted_sampler:
             weighted_sampler.step()
@@ -201,55 +157,55 @@ def _train(
             )
 
         # validation performance
-        eval(model, val_loader, estimator)
+        eval(model, val_loader, criterion, estimator, device)
         acc = estimator.get_accuracy(6)
         kappa = estimator.get_kappa(6)
         print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
 
         # save model
-        indicator = kappa if kappa_prior else acc
+        indicator = kappa if train_config['kappa_prior'] else acc
         if indicator > max_indicator:
             torch.save(model, os.path.join(save_path, 'best_validation_model.pt'))
             max_indicator = indicator
             print_msg('Best in validation set. Model save at {}'.format(save_path))
 
-        if epoch % TRAIN_CONFIG['save_interval'] == 0:
+        if epoch % train_config['save_interval'] == 0:
             torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
         curr_lr = optimizer.param_groups[0]['lr']
         if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
-            if TRAIN_CONFIG['lr_scheduler'] == 'reduce_on_plateau':
+            if train_config['lr_scheduler'] == 'reduce_on_plateau':
                 lr_scheduler.step(avg_loss)
             else:
                 lr_scheduler.step()
 
         # record
-        logger.add_scalar('training loss', avg_loss, epoch)
-        logger.add_scalar('training accuracy', avg_acc, epoch)
-        logger.add_scalar('training kappa', avg_kappa, epoch)
-        logger.add_scalar('learning rate', curr_lr, epoch)
-        logger.add_scalar('validation accuracy', acc, epoch)
-        logger.add_scalar('validation kappa', kappa, epoch)
+        if logger:
+            logger.add_scalar('training loss', avg_loss, epoch)
+            logger.add_scalar('training accuracy', avg_acc, epoch)
+            logger.add_scalar('training kappa', avg_kappa, epoch)
+            logger.add_scalar('learning rate', curr_lr, epoch)
+            logger.add_scalar('validation accuracy', acc, epoch)
+            logger.add_scalar('validation kappa', kappa, epoch)
 
     # save final model
     torch.save(model, os.path.join(save_path, 'final_model.pt'))
-    logger.close()
+    if logger:
+        logger.close()
 
 
-def evaluate(model_path, test_dataset):
-    device = BASIC_CONFIG['device']
-    criterion = TRAIN_CONFIG['criterion']
-    num_classes = BASIC_CONFIG['num_classes']
-    batch_size = TRAIN_CONFIG['batch_size']
-    num_workers = TRAIN_CONFIG['num_workers']
-
+def evaluate(model_path, train_config, test_dataset, num_classes, estimator, device):
     trained_model = torch.load(model_path).to(device)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=train_config['batch_size'],
+        num_workers=train_config['num_workers'],
+        shuffle=False
+    )
 
     print('Running on Test set...')
-    estimator = Estimator(criterion, num_classes, device)
-    eval(trained_model, test_loader, estimator)
+    eval(trained_model, test_loader, train_config['criterion'], estimator, device)
 
     print('========================================')
     print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
@@ -259,10 +215,7 @@ def evaluate(model_path, test_dataset):
     print('========================================')
 
 
-def eval(model, dataloader, estimator):
-    device = BASIC_CONFIG['device']
-    criterion = TRAIN_CONFIG['criterion']
-
+def eval(model, dataloader, criterion, estimator, device):
     model.eval()
     torch.set_grad_enabled(False)
 
@@ -277,12 +230,3 @@ def eval(model, dataloader, estimator):
 
     model.train()
     torch.set_grad_enabled(True)
-
-
-def print_msg(msg, appendixs=[]):
-    max_len = len(max([msg, *appendixs], key=len))
-    print('=' * max_len)
-    print(msg)
-    for appendix in appendixs:
-        print(appendix)
-    print('=' * max_len)

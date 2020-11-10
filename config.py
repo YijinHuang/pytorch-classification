@@ -1,5 +1,4 @@
 import torchvision.models as models
-from utils import auto_statistics
 
 
 BASIC_CONFIG = {
@@ -13,6 +12,22 @@ BASIC_CONFIG = {
     'num_classes': 5,  # number of categories
     'random_seed': 0,  # random seed for reproducibilty
     'device': 'cuda'  # 'cuda' / 'cpu'
+}
+
+DATA_CONFIG = {
+    'input_size': 224,
+    'mean': 'auto',  # 'auto' or a list of three numbers for RGB
+    'std': 'auto',  # 'auto' or a list of three numbers for RGB
+    'sampling_strategy': 'shuffle',  # 'shuffle' / 'balance' / 'dynamic'
+    'sampling_weights_decay_rate': 0.9,  # if sampling_strategy is dynamic, sampling weight will decay from balance to shuffle
+    'data_augmentation': {
+        'brightness': 0.2,  # how much to jitter brightness
+        'contrast': 0.2,  # How much to jitter contrast
+        'scale': (1 / 1.15, 1.15),  # range of size of the origin size cropped
+        'ratio': (0.7, 1.3),  # range of aspect ratio of the origin aspect ratio cropped
+        'degrees': (-180, 180),  # range of degrees to select from
+        'translate': (0.2, 0.2)  # tuple of maximum absolute fraction for horizontal and vertical translations
+    }
 }
 
 TRAIN_CONFIG = {
@@ -31,29 +46,31 @@ TRAIN_CONFIG = {
     'warmup_epochs': 0,  # warmup epochs
     'num_workers': 16,  # number of cpus used to load data at each step
     'save_interval': 5,  # number of epochs to store model
-    'pin_memory': True  # enables fast data transfer to CUDA-enabled GPUs
-}
-
-# remove it if you want to use your own mean and std for normalization
-mean, std = auto_statistics(
-    BASIC_CONFIG['data_path'],
-    BASIC_CONFIG['data_index'],
-    TRAIN_CONFIG['batch_size'],
-    TRAIN_CONFIG['num_workers']
-)
-DATA_CONFIG = {
-    'input_size': 224,
-    'mean': mean,  # list with three numbers for RGB
-    'std': std,  # list with three numbers for RGB
-    'sampling_strategy': 'shuffle',  # 'shuffle' / 'balance' / 'dynamic'
-    'sampling_weights_decay_rate': 0.9,  # if sampling_strategy is dynamic, sampling weight will decay from balance to shuffle
-    'data_augmentation': {
-        'brightness': 0.2,  # how much to jitter brightness
-        'contrast': 0.2,  # How much to jitter contrast
-        'scale': (1 / 1.15, 1.15),  # range of size of the origin size cropped
-        'ratio': (0.7, 1.3),  # range of aspect ratio of the origin aspect ratio cropped
-        'degrees': (-180, 180),  # range of degrees to select from
-        'translate': (0.2, 0.2)  # tuple of maximum absolute fraction for horizontal and vertical translations
+    'pin_memory': True,  # enables fast data transfer to CUDA-enabled GPUs
+    # you can add any learning rate scheduler in torch.optim.lr_scheduler
+    'scheduler_config': {
+        'exponential': {
+            'gamma': 0.6  # Multiplicative factor of learning rate decay
+        },
+        'multiple_steps': {
+            'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
+            'gamma': 0.1,  # Multiplicative factor of learning rate decay
+        },
+        'cosine': {
+            'T_max': 50,  # Maximum number of iterations.
+            'eta_min': 0  # Minimum learning rate.
+        },
+        'reduce_on_plateau': {
+            'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
+            'factor': 0.1,  # Factor by which the learning rate will be reduced
+            'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
+            'threshold': 1e-4,  # Threshold for measuring the new optimum
+            'eps': 1e-5,  # Minimal decay applied to lr
+        },
+        'clipped_cosine': {
+            'T_max': 50,
+            'min_lr': 1e-4  # lr will stay as min_lr when achieve it
+        }
     }
 }
 
@@ -83,30 +100,4 @@ NET_CONFIG = {
     'shufflenet_1_5': models.shufflenet_v2_x1_5,
     'shufflenet_2_0': models.shufflenet_v2_x2_0,
     'args': {}
-}
-
-# you can add any learning rate scheduler in torch.optim.lr_scheduler
-SCHEDULER_CONFIG = {
-    'exponential': {
-        'gamma': 0.6  # Multiplicative factor of learning rate decay
-    },
-    'multiple_steps': {
-        'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
-        'gamma': 0.1,  # Multiplicative factor of learning rate decay
-    },
-    'cosine': {
-        'T_max': TRAIN_CONFIG['epochs'] - TRAIN_CONFIG['warmup_epochs'],  # Maximum number of iterations.
-        'eta_min': 0  # Minimum learning rate.
-    },
-    'reduce_on_plateau': {
-        'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
-        'factor': 0.1,  # Factor by which the learning rate will be reduced
-        'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
-        'threshold': 1e-4,  # Threshold for measuring the new optimum
-        'eps': 1e-5,  # Minimal decay applied to lr
-    },
-    'clipped_cosine': {
-        'T_max': TRAIN_CONFIG['epochs'] - TRAIN_CONFIG['warmup_epochs'],
-        'min_lr': 1e-4  # lr will stay as min_lr when achieve it
-    }
 }

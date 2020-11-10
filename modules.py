@@ -6,32 +6,6 @@ import torchvision.models as models
 from torch.autograd import Variable
 from torch.utils.data.sampler import Sampler
 
-from config import BASIC_CONFIG, TRAIN_CONFIG, NET_CONFIG
-
-
-def generate_model(network, num_classes, checkpoint, pretrained=True):
-    device = BASIC_CONFIG['device']
-    if checkpoint:
-        model = torch.load(checkpoint).to(device)
-        print('Load weights form {}'.format(checkpoint))
-    else:
-        if network not in NET_CONFIG.keys():
-            raise NotImplementedError('Not implemented network.')
-        num_classes = 1 if TRAIN_CONFIG['criterion'] == 'MSE' else num_classes
-
-        model = CustomizedModel(
-            network,
-            NET_CONFIG[network],
-            num_classes,
-            pretrained,
-            **NET_CONFIG['args']
-        ).to(device)
-
-    if device == 'cuda' and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
-
-    return model
-
 
 class CustomizedModel(nn.Module):
     def __init__(self, name, backbone, num_classes, pretrained=False, **kwargs):
