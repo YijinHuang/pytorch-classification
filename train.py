@@ -1,118 +1,26 @@
 import os
 
 import torch
-import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from modules import *
 from utils import print_msg
-from metrics import Estimator
 
 
 def train(model, train_config, data_config, train_dataset, val_dataset, save_path, estimator, device, logger=None):
-    # define weighted_sampler
-    sampling_strategy = data_config['sampling_strategy']
-    if sampling_strategy == 'balance':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
-    elif sampling_strategy == 'dynamic':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, data_config['sampling_weights_decay_rate'])
-    else:
-        weighted_sampler = None
-
-    # define data loader
-    batch_size = train_config['batch_size']
-    num_workers = train_config['num_workers']
-    pin_memory = train_config['pin_memory']
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=False if weighted_sampler else True,
-        sampler=weighted_sampler,
-        num_workers=num_workers,
-        drop_last=True,
-        pin_memory=pin_memory
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        drop_last=False,
-        pin_memory=pin_memory
-    )
-
-    # define loss and loss weights scheduler
     criterion = train_config['criterion']
-    weight = None
-    loss_weight_scheduler = None
-    loss_weight = train_config['loss_weight']
-    if criterion == 'CE':
-        if loss_weight == 'balance':
-            loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
-        elif loss_weight == 'dynamic':
-            loss_weight_scheduler = LossWeightsScheduler(train_dataset, train_config['loss_weight_decay_rate'])
-        elif isinstance(loss_weight, list):
-            assert len(loss_weight) == len(train_dataset.classes)
-            weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=device)
-        loss_function = nn.CrossEntropyLoss(weight=weight)
-    elif criterion == 'MSE':
-        loss_function = nn.MSELoss()
-    else:
-        raise NotImplementedError('Not implemented loss function.')
-
-    # define optmizer
-    optimizer_strategy = train_config['optimizer']
-    learning_rate = train_config['learning_rate']
-    weight_decay = train_config['weight_decay']
-    momentum = train_config['momentum']
-    nesterov = train_config['nesterov']
-    if optimizer_strategy == 'SGD':
-        optimizer = torch.optim.SGD(
-            model.parameters(),
-            lr=learning_rate,
-            momentum=momentum,
-            nesterov=nesterov,
-            weight_decay=weight_decay
-        )
-    elif optimizer_strategy == 'ADAM':
-        optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=learning_rate,
-            weight_decay=weight_decay
-        )
-    else:
-        raise NotImplementedError('Not implemented optimizer.')
-
-    # define learning rate scheduler
-    warmup_epochs = train_config['warmup_epochs']
-    scheduler_strategy = train_config['lr_scheduler']
-    scheduler_config = train_config['scheduler_config']
-    if scheduler_strategy in scheduler_config.keys():
-        scheduler_config = scheduler_config[scheduler_strategy]
-        if scheduler_strategy == 'cosine':
-            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'multiple_steps':
-            lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'reduce_on_plateau':
-            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'exponential':
-            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'clipped_cosine':
-            lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
-    else:
-        lr_scheduler = None
-
-    if warmup_epochs > 0:
-        warmup_scheduler = WarmupLRScheduler(optimizer, warmup_epochs, learning_rate)
-    else:
-        warmup_scheduler = None
+    optimizer = initialize_optimizer(train_config, model)
+    weighted_sampler = initialize_sampler(data_config, train_dataset)
+    lr_scheduler, warmup_scheduler = initialize_lr_scheduler(train_config, optimizer)
+    loss_function, loss_weight_scheduler = initialize_loss(train_config, train_dataset, device)
+    train_loader, val_loader = initialize_dataloader(train_config, train_dataset, val_dataset, weighted_sampler)
 
     # start training
-    max_indicator = 0
     model.train()
+    max_indicator = 0
+    avg_loss, avg_acc, avg_kappa = 0, 0, 0
     for epoch in range(1, train_config['epochs'] + 1):
         # resampling weight update
         if weighted_sampler:
@@ -230,3 +138,120 @@ def eval(model, dataloader, criterion, estimator, device):
 
     model.train()
     torch.set_grad_enabled(True)
+
+
+# define weighted_sampler
+def initialize_sampler(data_config, train_dataset):
+    sampling_strategy = data_config['sampling_strategy']
+    if sampling_strategy == 'balance':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
+    elif sampling_strategy == 'dynamic':
+        weighted_sampler = ScheduledWeightedSampler(train_dataset, data_config['sampling_weights_decay_rate'])
+    else:
+        weighted_sampler = None
+    return weighted_sampler
+
+
+# define data loader
+def initialize_dataloader(train_config, train_dataset, val_dataset, weighted_sampler):
+    batch_size = train_config['batch_size']
+    num_workers = train_config['num_workers']
+    pin_memory = train_config['pin_memory']
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=False if weighted_sampler else True,
+        sampler=weighted_sampler,
+        num_workers=num_workers,
+        drop_last=True,
+        pin_memory=pin_memory
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        drop_last=False,
+        pin_memory=pin_memory
+    )
+
+    return train_loader, val_loader
+
+
+# define loss and loss weights scheduler
+def initialize_loss(train_config, train_dataset, device):
+    criterion = train_config['criterion']
+    weight = None
+    loss_weight_scheduler = None
+    loss_weight = train_config['loss_weight']
+    if criterion == 'CE':
+        if loss_weight == 'balance':
+            loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
+        elif loss_weight == 'dynamic':
+            loss_weight_scheduler = LossWeightsScheduler(train_dataset, train_config['loss_weight_decay_rate'])
+        elif isinstance(loss_weight, list):
+            assert len(loss_weight) == len(train_dataset.classes)
+            weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=device)
+        loss_function = nn.CrossEntropyLoss(weight=weight)
+    elif criterion == 'MSE':
+        loss_function = nn.MSELoss()
+    else:
+        raise NotImplementedError('Not implemented loss function.')
+
+    return loss_function, loss_weight_scheduler
+
+
+# define optmizer
+def initialize_optimizer(train_config, model):
+    optimizer_strategy = train_config['optimizer']
+    learning_rate = train_config['learning_rate']
+    weight_decay = train_config['weight_decay']
+    momentum = train_config['momentum']
+    nesterov = train_config['nesterov']
+    if optimizer_strategy == 'SGD':
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=learning_rate,
+            momentum=momentum,
+            nesterov=nesterov,
+            weight_decay=weight_decay
+        )
+    elif optimizer_strategy == 'ADAM':
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=learning_rate,
+            weight_decay=weight_decay
+        )
+    else:
+        raise NotImplementedError('Not implemented optimizer.')
+
+    return optimizer
+
+
+# define learning rate scheduler
+def initialize_lr_scheduler(train_config, optimizer):
+    learning_rate = train_config['learning_rate']
+    warmup_epochs = train_config['warmup_epochs']
+    scheduler_strategy = train_config['lr_scheduler']
+    scheduler_config = train_config['scheduler_config']
+
+    lr_scheduler = None
+    if scheduler_strategy in scheduler_config.keys():
+        scheduler_config = scheduler_config[scheduler_strategy]
+        if scheduler_strategy == 'cosine':
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'multiple_steps':
+            lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'reduce_on_plateau':
+            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'exponential':
+            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
+        elif scheduler_strategy == 'clipped_cosine':
+            lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
+
+    if warmup_epochs > 0:
+        warmup_scheduler = WarmupLRScheduler(optimizer, warmup_epochs, learning_rate)
+    else:
+        warmup_scheduler = None
+
+    return lr_scheduler, warmup_scheduler

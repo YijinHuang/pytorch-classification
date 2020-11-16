@@ -1,5 +1,4 @@
 import os
-import sys
 import random
 import shutil
 
@@ -11,7 +10,7 @@ from pprint import pprint
 from config import *
 from metrics import Estimator
 from train import train, evaluate
-from utils import print_msg, generate_dataset, generate_model
+from utils import generate_dataset, generate_model
 
 
 def main():

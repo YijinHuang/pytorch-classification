@@ -1,10 +1,6 @@
 import os
-import random
 import pickle
 
-import torch
-import numpy as np
-from tqdm import tqdm
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets

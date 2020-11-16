@@ -42,7 +42,7 @@ TRAIN_CONFIG = {
     'momentum': 0.9,  # momentum for SGD optimizer
     'nesterov': True,  # nesterov for SGD optimizer
     'weight_decay': 0.0005,  # weight decay for SGD and ADAM
-    'kappa_prior': True,  # save model with higher kappa or higher accuracy in validation set
+    'kappa_prior': False,  # save model with higher kappa or higher accuracy in validation set
     'warmup_epochs': 0,  # warmup epochs
     'num_workers': 16,  # number of cpus used to load data at each step
     'save_interval': 5,  # number of epochs to store model
