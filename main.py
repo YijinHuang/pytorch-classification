@@ -49,6 +49,8 @@ def main():
         DATA_CONFIG,
         BASIC_CONFIG['data_path'],
         BASIC_CONFIG['data_index']
+        TRAIN_CONFIG['batch_size'],
+        TRAIN_CONFIG['num_workers']
     )
 
     # create logger

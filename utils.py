@@ -10,9 +10,9 @@ from modules import CustomizedModel
 from data import generate_dataset_from_pickle, generate_dataset_from_folder, DatasetFromDict, data_transforms
 
 
-def generate_dataset(data_config, data_path, pkl=None, batch_size=16, num_workers=1):
+def generate_dataset(data_config, data_path, data_index=None, batch_size=16, num_workers=8):
     if data_config['mean'] == 'auto' or data_config['std'] == 'auto':
-        mean, std = auto_statistics(data_path, pkl, batch_size, num_workers)
+        mean, std = auto_statistics(data_path, data_index, batch_size, num_workers, data_config['input_size'])
         data_config['mean'] = mean
         data_config['std'] = std
         print('=========================')
@@ -22,8 +22,8 @@ def generate_dataset(data_config, data_path, pkl=None, batch_size=16, num_worker
         print('=========================')
 
     train_tf, test_tf = data_transforms(data_config)
-    if pkl:
-        datasets = generate_dataset_from_pickle(pkl, data_config, train_tf, test_tf)
+    if data_index:
+        datasets = generate_dataset_from_pickle(data_index, data_config, train_tf, test_tf)
     else:
         datasets = generate_dataset_from_folder(data_path, data_config, train_tf, test_tf)
 
@@ -60,14 +60,19 @@ def generate_model(network, out_features, net_config, device, pretrained=True, c
     return model
 
 
-def auto_statistics(data_path, data_index, batch_size, num_workers):
+def auto_statistics(data_path, data_index, batch_size, num_workers, input_size):
     print('Calculating mean and std of training set for data normalization.')
+    transform = transforms.Compose([
+        transforms.Resize((input_size, input_size)),
+        transforms.ToTensor()
+    ])
+
     if data_index:
         train_set = pickle.load(open(data_index, 'rb'))['train']
-        train_dataset = DatasetFromDict(train_set, transform=transforms.ToTensor())
+        train_dataset = DatasetFromDict(train_set, transform=transform)
     else:
         train_path = os.path.join(data_path, 'train')
-        train_dataset = datasets.ImageFolder(train_path, transform=transforms.ToTensor())
+        train_dataset = datasets.ImageFolder(train_path, transform=transform)
 
     return mean_and_std(train_dataset, batch_size, num_workers)
 
