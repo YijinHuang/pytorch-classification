@@ -5,17 +5,20 @@ import shutil
 import torch
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from pprint import pprint
 
 from config import *
 from metrics import Estimator
 from train import train, evaluate
-from utils import generate_dataset, generate_model
+from utils import generate_dataset, generate_model, show_config
 
 
 def main():
     # print configuration
-    print_config()
+    show_config({
+        'BASIC CONFIG': BASIC_CONFIG,
+        'DATA CONFIG': DATA_CONFIG,
+        'TRAIN CONFIG': TRAIN_CONFIG
+    })
 
     # reproducibility
     seed = BASIC_CONFIG['random_seed']
@@ -83,17 +86,6 @@ def set_random_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
-
-
-def print_config():
-    print('=========================')
-    print('===Basic configuration===')
-    pprint(BASIC_CONFIG, sort_dicts=False)
-    print('===Data configuration===')
-    pprint(DATA_CONFIG, sort_dicts=False)
-    print('===Training configuration===')
-    pprint(TRAIN_CONFIG, sort_dicts=False)
-    print('========================')
 
 
 if __name__ == '__main__':

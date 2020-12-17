@@ -106,3 +106,20 @@ def print_msg(msg, appendixs=[]):
     for appendix in appendixs:
         print(appendix)
     print('=' * max_len)
+
+
+def show_config(configs):
+    for name, config in configs.items():
+        print('====={}====='.format(name))
+        print_config(config)
+        print('=' * (len(name) + 10))
+        print()
+
+
+def print_config(config, indentation=''):
+    for key, value in config.items():
+        if isinstance(value, dict):
+            print('{}{}:'.format(indentation, key))
+            print_config(value, indentation + '    ')
+        else:
+            print('{}{}: {}'.format(indentation, key, value))
