@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 
 
-def generate_dataset_from_folder(data_path, data_config, train_transform, test_transform):
+def generate_dataset_from_folder(data_path, train_transform, test_transform):
     train_path = os.path.join(data_path, 'train')
     test_path = os.path.join(data_path, 'test')
     val_path = os.path.join(data_path, 'val')
@@ -18,7 +18,7 @@ def generate_dataset_from_folder(data_path, data_config, train_transform, test_t
     return train_dataset, test_dataset, val_dataset
 
 
-def generate_dataset_from_pickle(pkl, data_config, train_transform, test_transform):
+def generate_dataset_from_pickle(pkl, train_transform, test_transform):
     data = pickle.load(open(pkl, 'rb'))
     train_set, test_set, val_set = data['train'], data['test'], data['val']
 

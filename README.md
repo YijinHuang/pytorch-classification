@@ -6,10 +6,10 @@
 
 ### Features
 
-- Update all hyperparameters in one file
-- Training progress monitoring and curve visualization
+- Easy to configure (model, hyperparameters)
+- Training progress monitoring and visualization
 - Weighted sampling / weighted loss / kappa loss / focal loss for imbalance dataset
-- Kappa calculation for evaluating model on imbalance dataset
+- Kappa metric for evaluating model on imbalance dataset
 - Different learning rate schedulers and warmup support
 - Data augmentation
 - Multiple GPUs support
@@ -42,7 +42,7 @@ Organize your images as follows:
     ├── test
 ```
 
-Here, `val` and `test` directory have the same structure of  `train`.  Then Replace the value of 'data_path' in BASIC_CONFIG in `config.py` with path to your_data_dir and keep 'data_index' as None.
+Here, `val` and `test` directory have the same structure of  `train`.  Then replace the value of 'data_path' in BASIC_CONFIG in `config.py` with path to your_data_dir and keep 'data_index' as None.
 
 - Dict-form dataset:
 

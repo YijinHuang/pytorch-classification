@@ -160,7 +160,7 @@ def initialize_dataloader(train_config, train_dataset, val_dataset, weighted_sam
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=False if weighted_sampler else True,
+        shuffle=(weighted_sampler is None),
         sampler=weighted_sampler,
         num_workers=num_workers,
         drop_last=True,
