@@ -23,9 +23,9 @@ def generate_dataset(data_config, data_path, data_index=None, batch_size=16, num
 
     train_tf, test_tf = data_transforms(data_config)
     if data_index:
-        datasets = generate_dataset_from_pickle(data_index, data_config, train_tf, test_tf)
+        datasets = generate_dataset_from_pickle(data_index, train_tf, test_tf)
     else:
-        datasets = generate_dataset_from_folder(data_path, data_config, train_tf, test_tf)
+        datasets = generate_dataset_from_folder(data_path, train_tf, test_tf)
 
     train_dataset, test_dataset, val_dataset = datasets
     print('=========================')
