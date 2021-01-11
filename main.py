@@ -76,10 +76,10 @@ def main():
     # test
     print('This is the performance of the best validation model:')
     model_path = os.path.join(save_path, 'best_validation_model.pt')
-    evaluate(model_path, TRAIN_CONFIG, test_dataset, num_classes, estimator, device)
+    evaluate(model_path, TRAIN_CONFIG, test_dataset, estimator, device)
     print('This is the performance of the final model:')
     model_path = os.path.join(save_path, 'final_model.pt')
-    evaluate(model_path, TRAIN_CONFIG, test_dataset, num_classes, estimator, device)
+    evaluate(model_path, TRAIN_CONFIG, test_dataset, estimator, device)
 
 
 def set_random_seed(seed):

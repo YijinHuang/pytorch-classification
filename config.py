@@ -45,8 +45,10 @@ TRAIN_CONFIG = {
     'kappa_prior': False,  # save model with higher kappa or higher accuracy in validation set
     'warmup_epochs': 0,  # warmup epochs
     'num_workers': 16,  # number of cpus used to load data at each step
-    'save_interval': 5,  # number of epochs to store model
+    'save_interval': 5,  # the steps interval of saving model
     'pin_memory': True,  # enables fast data transfer to CUDA-enabled GPUs
+    'sample_view': True,  # visualize images on Tensorboard
+    'sample_view_interval': 100,  # the steps interval of saving samples on Tensorboard. Note that frequently saving images will slow down the training speed.
     # you can add any learning rate scheduler in torch.optim.lr_scheduler
     'scheduler_config': {
         'exponential': {

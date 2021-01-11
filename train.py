@@ -6,7 +6,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from modules import *
-from utils import print_msg
+from utils import print_msg, inverse_normalize
 
 
 def train(model, train_config, data_config, train_dataset, val_dataset, save_path, estimator, device, logger=None):
@@ -59,6 +59,12 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
             avg_acc = estimator.get_accuracy(6)
             avg_kappa = estimator.get_kappa(6)
 
+            # visualize samples
+            if train_config['sample_view'] and step % train_config['sample_view_interval'] == 0:
+                samples = torchvision.utils.make_grid(X)
+                samples = inverse_normalize(samples, data_config['mean'], data_config['std'])
+                logger.add_image('input samples', samples, 0, dataformats='CHW')
+
             progress.set_description(
                 'epoch: {}, loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
                 .format(epoch, avg_loss, avg_acc, avg_kappa)
@@ -103,7 +109,7 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
         logger.close()
 
 
-def evaluate(model_path, train_config, test_dataset, num_classes, estimator, device):
+def evaluate(model_path, train_config, test_dataset, estimator, device):
     trained_model = torch.load(model_path).to(device)
     test_loader = DataLoader(
         test_dataset,
