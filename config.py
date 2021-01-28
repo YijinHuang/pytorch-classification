@@ -3,12 +3,12 @@ import torchvision.models as models
 
 BASIC_CONFIG = {
     'network': 'resnet50',  # shoud be one name in NET_CONFIG below
-    'data_path': 'path/to/your/dataset',
+    'data_path': '/path/to/your/dataset',
     'data_index': None,  # alternative way to build dataset
-    'save_path': 'path/to/save/folder',
-    'record_path': 'path/to/save/log/folder',
-    'pretrained': True,  # load pretrained parameters in ImageNet
-    'checkpoint': None,  # load other pretrained model
+    'save_path': '/path/to/save/folder',
+    'record_path': '/path/to/save/log/folder',
+    'pretrained': True,  # load weights from pre-trained model training on ImageNet
+    'checkpoint': None,  # load weights from other pretrained model
     'num_classes': 5,  # number of categories
     'random_seed': 0,  # random seed for reproducibilty
     'device': 'cuda'  # 'cuda' / 'cpu'
@@ -21,8 +21,10 @@ DATA_CONFIG = {
     'sampling_strategy': 'shuffle',  # 'shuffle' / 'balance' / 'dynamic'
     'sampling_weights_decay_rate': 0.9,  # if sampling_strategy is dynamic, sampling weight will decay from balance to shuffle
     'data_augmentation': {
-        'brightness': 0.2,  # how much to jitter brightness
-        'contrast': 0.2,  # How much to jitter contrast
+        'brightness': 0.2,  # range of contrast jitter
+        'contrast': 0.2,  # range of contrast jitter
+        'saturation': 0.2,  # range of saturation jitter
+        'hue': 0.1,  # range of hue jitter
         'scale': (1 / 1.15, 1.15),  # range of size of the origin size cropped
         'ratio': (0.7, 1.3),  # range of aspect ratio of the origin aspect ratio cropped
         'degrees': (-180, 180),  # range of degrees to select from
@@ -30,50 +32,66 @@ DATA_CONFIG = {
     }
 }
 
+CRITERION_CONFIG = {
+    'cross_entropy': {},
+    'mean_square_root': {},
+    'L1': {},
+    'smooth_L1': {},
+    'kappa_loss': {
+        'num_classes': BASIC_CONFIG['num_classes']
+    },
+    'focal_loss': {
+        'alpha': 5,
+        'reduction': 'mean'
+    }
+}
+
+SCHEDULER_CONFIG = {
+    'exponential': {
+        'gamma': 0.6  # Multiplicative factor of learning rate decay
+    },
+    'multiple_steps': {
+        'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
+        'gamma': 0.1,  # Multiplicative factor of learning rate decay
+    },
+    'cosine': {
+        'T_max': 50,  # Maximum number of iterations.
+        'eta_min': 0  # Minimum learning rate.
+    },
+    'reduce_on_plateau': {
+        'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
+        'factor': 0.1,  # Factor by which the learning rate will be reduced
+        'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
+        'threshold': 1e-4,  # Threshold for measuring the new optimum
+        'eps': 1e-5,  # Minimal decay applied to lr
+    },
+    'clipped_cosine': {
+        'T_max': 50,
+        'min_lr': 1e-4  # lr will stay as min_lr when achieve it
+    }
+}
+
 TRAIN_CONFIG = {
     'epochs': 50,  # total training epochs
-    'batch_size': 16,  # training batch size
+    'batch_size': 32,  # training batch size
     'optimizer': 'SGD',  # SGD / ADAM
-    'criterion': 'CE',  # 'CE' / 'MSE', cross entropy or mean squared error. Generally, MSE is better than CE on kappa.
+    'criterion': 'cross_entropy',  # one str name in CRITERION_CONFIG above.
+    'criterion_config': CRITERION_CONFIG['mean_square_root'],  # loss function configurations, the key should the be same with criterion
     'loss_weight': None,  # None / 'balance' / 'dynamic' / list with shape num_classes. Weights for loss function. Don't use it with weighted sampling!
     'loss_weight_decay_rate': 0.9,  # if loss_weights is dynamic, loss weight will decay from balance to equivalent weights
     'learning_rate': 0.001,  # initial learning rate
-    'lr_scheduler': 'cosine',  # one str name in SCHEDULER_CONFIG below, scheduler configurations are in SCHEDULER_CONFIG.
+    'lr_scheduler': 'cosine',  # one str name in SCHEDULER_CONFIG above
+    'lr_scheduler_config': SCHEDULER_CONFIG['cosine'],  # scheduler configurations, the key should the be same with lr_cheduler
     'momentum': 0.9,  # momentum for SGD optimizer
     'nesterov': True,  # nesterov for SGD optimizer
     'weight_decay': 0.0005,  # weight decay for SGD and ADAM
     'kappa_prior': False,  # save model with higher kappa or higher accuracy in validation set
     'warmup_epochs': 0,  # warmup epochs
-    'num_workers': 16,  # number of cpus used to load data at each step
+    'num_workers': 8,  # number of cpus used to load data at each step
     'save_interval': 5,  # the steps interval of saving model
     'pin_memory': True,  # enables fast data transfer to CUDA-enabled GPUs
-    'sample_view': True,  # visualize images on Tensorboard
+    'sample_view': False,  # visualize images on Tensorboard
     'sample_view_interval': 100,  # the steps interval of saving samples on Tensorboard. Note that frequently saving images will slow down the training speed.
-    # you can add any learning rate scheduler in torch.optim.lr_scheduler
-    'scheduler_config': {
-        'exponential': {
-            'gamma': 0.6  # Multiplicative factor of learning rate decay
-        },
-        'multiple_steps': {
-            'milestones': [15, 25, 45],  # List of epoch indices. Must be increasing
-            'gamma': 0.1,  # Multiplicative factor of learning rate decay
-        },
-        'cosine': {
-            'T_max': 50,  # Maximum number of iterations.
-            'eta_min': 0  # Minimum learning rate.
-        },
-        'reduce_on_plateau': {
-            'mode': 'min',  # In min mode, lr will be reduced when the quantity monitored has stopped decreasing
-            'factor': 0.1,  # Factor by which the learning rate will be reduced
-            'patience': 5,  # Number of epochs with no improvement after which learning rate will be reduced.
-            'threshold': 1e-4,  # Threshold for measuring the new optimum
-            'eps': 1e-5,  # Minimal decay applied to lr
-        },
-        'clipped_cosine': {
-            'T_max': 50,
-            'min_lr': 1e-4  # lr will stay as min_lr when achieve it
-        }
-    }
 }
 
 # you can add any networks in torchvision.models

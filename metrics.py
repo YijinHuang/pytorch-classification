@@ -39,11 +39,11 @@ class Estimator():
     def to_prediction(self, predictions):
         predictions = predictions.data
 
-        if self.criterion == 'CE':
+        if self.criterion in ['cross_entropy', 'focal_loss', 'kappa_loss']:
             predictions = torch.tensor(
                 [torch.argmax(p) for p in predictions]
             ).to(self.device).long()
-        elif self.criterion == 'MSE':
+        elif self.criterion in ['mean_square_root', 'L1', 'smooth_L1']:
             predictions = torch.tensor(
                 [self.classify(p.item()) for p in predictions]
             ).to(self.device).float()

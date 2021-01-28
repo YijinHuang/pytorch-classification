@@ -2,79 +2,10 @@ import os
 import pickle
 
 import torch
+from PIL import Image
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-
-from modules import CustomizedModel
-from data import generate_dataset_from_pickle, generate_dataset_from_folder, DatasetFromDict, data_transforms
-
-
-def generate_dataset(data_config, data_path, data_index=None, batch_size=16, num_workers=8):
-    if data_config['mean'] == 'auto' or data_config['std'] == 'auto':
-        mean, std = auto_statistics(data_path, data_index, batch_size, num_workers, data_config['input_size'])
-        data_config['mean'] = mean
-        data_config['std'] = std
-        print('=========================')
-        print('Statistics of training set')
-        print('mean: {}'.format(mean))
-        print('std: {}'.format(std))
-        print('=========================')
-
-    train_tf, test_tf = data_transforms(data_config)
-    if data_index:
-        datasets = generate_dataset_from_pickle(data_index, train_tf, test_tf)
-    else:
-        datasets = generate_dataset_from_folder(data_path, train_tf, test_tf)
-
-    train_dataset, test_dataset, val_dataset = datasets
-    print('=========================')
-    print('Dataset Loaded.')
-    print('Categories:\t{}'.format(len(train_dataset.classes)))
-    print('Training:\t{}'.format(len(train_dataset)))
-    print('Validation:\t{}'.format(len(val_dataset)))
-    print('Test:\t\t{}'.format(len(test_dataset)))
-    print('=========================')
-    return datasets
-
-
-def generate_model(network, out_features, net_config, device, pretrained=True, checkpoint=None):
-    if checkpoint:
-        model = torch.load(checkpoint).to(device)
-        print('Load weights form {}'.format(checkpoint))
-    else:
-        if network not in net_config.keys():
-            raise NotImplementedError('Not implemented network.')
-
-        model = CustomizedModel(
-            network,
-            net_config[network],
-            out_features,
-            pretrained,
-            **net_config['args']
-        ).to(device)
-
-    if device == 'cuda' and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
-
-    return model
-
-
-def auto_statistics(data_path, data_index, batch_size, num_workers, input_size):
-    print('Calculating mean and std of training set for data normalization.')
-    transform = transforms.Compose([
-        transforms.Resize((input_size, input_size)),
-        transforms.ToTensor()
-    ])
-
-    if data_index:
-        train_set = pickle.load(open(data_index, 'rb'))['train']
-        train_dataset = DatasetFromDict(train_set, transform=transform)
-    else:
-        train_path = os.path.join(data_path, 'train')
-        train_dataset = datasets.ImageFolder(train_path, transform=transform)
-
-    return mean_and_std(train_dataset, batch_size, num_workers)
 
 
 def mean_and_std(train_dataset, batch_size, num_workers):
@@ -101,7 +32,18 @@ def mean_and_std(train_dataset, batch_size, num_workers):
         channel_std += ((X - channel_mean) ** 2).mean(0) * batch_samples
     channel_std = torch.sqrt(channel_std / num_samples)
 
-    return channel_mean.tolist(), channel_std.tolist()
+    mean, std = channel_mean.tolist(), channel_std.tolist()
+    print('mean: {}'.format(mean))
+    print('std: {}'.format(std))
+    return mean, std
+
+
+def save_weights(model, save_path):
+    if isinstance(model, torch.nn.DataParallel):
+        state_dict = model.module.state_dict()
+    else:
+        state_dict = model.state_dict()
+    torch.save(state_dict, save_path)
 
 
 def print_msg(msg, appendixs=[]):
@@ -113,24 +55,69 @@ def print_msg(msg, appendixs=[]):
     print('=' * max_len)
 
 
-def show_config(configs):
+def print_config(configs):
     for name, config in configs.items():
         print('====={}====='.format(name))
-        print_config(config)
+        _print_config(config)
         print('=' * (len(name) + 10))
         print()
 
 
-def print_config(config, indentation=''):
+def _print_config(config, indentation=''):
     for key, value in config.items():
         if isinstance(value, dict):
             print('{}{}:'.format(indentation, key))
-            print_config(value, indentation + '    ')
+            _print_config(value, indentation + '    ')
         else:
             print('{}{}: {}'.format(indentation, key, value))
 
 
+def print_dataset_info(datasets):
+    train_dataset, test_dataset, val_dataset = datasets
+    print('=========================')
+    print('Dataset Loaded.')
+    print('Categories:\t{}'.format(len(train_dataset.classes)))
+    print('Training:\t{}'.format(len(train_dataset)))
+    print('Validation:\t{}'.format(len(val_dataset)))
+    print('Test:\t\t{}'.format(len(test_dataset)))
+    print('=========================')
+
+
+def pil_loader(path):
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
+
+
+# unnormalize image for visualization
 def inverse_normalize(tensor, mean, std):
     for t, m, s in zip(tensor, mean, std):
         t.mul_(s).add_(m)
     return tensor
+
+
+# convert labels to onehot
+def one_hot(labels, num_classes, device, dtype):
+    y = torch.eye(num_classes, device=device, dtype=dtype)
+    return y[labels]
+
+
+# convert type of target according to criterion
+def select_target_type(y, criterion):
+    if criterion in ['cross_entropy', 'kappa_loss']:
+        y = y.long()
+    elif criterion in ['mean_square_root', 'L1', 'smooth_L1']:
+        y = y.float()
+    elif criterion in ['focal_loss']:
+        y = y.to(dtype=torch.int64)
+    else:
+        raise NotImplementedError('Not implemented criterion.')
+    return y
+
+
+# convert output dimension of network according to criterion
+def select_out_features(num_classes, criterion):
+    out_features = num_classes
+    if criterion in ['mean_square_root', 'L1', 'smooth_L1']:
+        out_features = 1
+    return out_features

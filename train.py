@@ -1,12 +1,13 @@
 import os
 
 import torch
+import torchvision
 import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from modules import *
-from utils import print_msg, inverse_normalize
+from utils import save_weights, print_msg, inverse_normalize, select_target_type
 
 
 def train(model, train_config, data_config, train_dataset, val_dataset, save_path, estimator, device, logger=None):
@@ -41,7 +42,7 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
         for step, train_data in progress:
             X, y = train_data
             X, y = X.to(device), y.to(device)
-            y = y.long() if criterion == 'CE' else y.float()
+            y = select_target_type(y, criterion)
 
             # forward
             y_pred = model(X)
@@ -79,12 +80,12 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
         # save model
         indicator = kappa if train_config['kappa_prior'] else acc
         if indicator > max_indicator:
-            torch.save(model, os.path.join(save_path, 'best_validation_model.pt'))
+            save_weights(model, os.path.join(save_path, 'best_validation_weights.pt'))
             max_indicator = indicator
             print_msg('Best in validation set. Model save at {}'.format(save_path))
 
         if epoch % train_config['save_interval'] == 0:
-            torch.save(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
+            save_weights(model, os.path.join(save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
         curr_lr = optimizer.param_groups[0]['lr']
@@ -104,13 +105,14 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
             logger.add_scalar('validation kappa', kappa, epoch)
 
     # save final model
-    torch.save(model, os.path.join(save_path, 'final_model.pt'))
+    save_weights(model, os.path.join(save_path, 'final_weights.pt'))
     if logger:
         logger.close()
 
 
-def evaluate(model_path, train_config, test_dataset, estimator, device):
-    trained_model = torch.load(model_path).to(device)
+def evaluate(model, checkpoint, train_config, test_dataset, estimator, device):
+    weights = torch.load(checkpoint)
+    model.load_state_dict(weights, strict=True)
     test_loader = DataLoader(
         test_dataset,
         batch_size=train_config['batch_size'],
@@ -119,7 +121,7 @@ def evaluate(model_path, train_config, test_dataset, estimator, device):
     )
 
     print('Running on Test set...')
-    eval(trained_model, test_loader, train_config['criterion'], estimator, device)
+    eval(model, test_loader, train_config['criterion'], estimator, device)
 
     print('========================================')
     print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
@@ -137,7 +139,7 @@ def eval(model, dataloader, criterion, estimator, device):
     for test_data in dataloader:
         X, y = test_data
         X, y = X.to(device), y.to(device)
-        y = y.long() if criterion == 'CE' else y.float()
+        y = select_target_type(y, criterion)
 
         y_pred = model(X)
         estimator.update(y_pred, y)
@@ -187,10 +189,12 @@ def initialize_dataloader(train_config, train_dataset, val_dataset, weighted_sam
 # define loss and loss weights scheduler
 def initialize_loss(train_config, train_dataset, device):
     criterion = train_config['criterion']
+    criterion_config = train_config['criterion_config']
+
     weight = None
     loss_weight_scheduler = None
     loss_weight = train_config['loss_weight']
-    if criterion == 'CE':
+    if criterion == 'cross_entropy':
         if loss_weight == 'balance':
             loss_weight_scheduler = LossWeightsScheduler(train_dataset, 1)
         elif loss_weight == 'dynamic':
@@ -198,9 +202,17 @@ def initialize_loss(train_config, train_dataset, device):
         elif isinstance(loss_weight, list):
             assert len(loss_weight) == len(train_dataset.classes)
             weight = torch.as_tensor(loss_weight, dtype=torch.float32, device=device)
-        loss_function = nn.CrossEntropyLoss(weight=weight)
-    elif criterion == 'MSE':
-        loss_function = nn.MSELoss()
+        loss_function = nn.CrossEntropyLoss(weight=weight, **criterion_config)
+    elif criterion == 'mean_square_root':
+        loss_function = nn.MSELoss(**criterion_config)
+    elif criterion == 'L1':
+        loss_function = nn.L1Loss(**criterion_config)
+    elif criterion == 'smooth_L1':
+        loss_function = nn.SmoothL1Loss(**criterion_config)
+    elif criterion == 'kappa_loss':
+        loss_function = KappaLoss(**criterion_config)
+    elif criterion == 'focal_loss':
+        loss_function = FocalLoss(**criterion_config)
     else:
         raise NotImplementedError('Not implemented loss function.')
 
@@ -239,11 +251,10 @@ def initialize_lr_scheduler(train_config, optimizer):
     learning_rate = train_config['learning_rate']
     warmup_epochs = train_config['warmup_epochs']
     scheduler_strategy = train_config['lr_scheduler']
-    scheduler_config = train_config['scheduler_config']
+    scheduler_config = train_config['lr_scheduler_config']
 
     lr_scheduler = None
     if scheduler_strategy in scheduler_config.keys():
-        scheduler_config = scheduler_config[scheduler_strategy]
         if scheduler_strategy == 'cosine':
             lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
         elif scheduler_strategy == 'multiple_steps':
