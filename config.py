@@ -76,7 +76,7 @@ TRAIN_CONFIG = {
     'batch_size': 32,  # training batch size
     'optimizer': 'SGD',  # SGD / ADAM
     'criterion': 'cross_entropy',  # one str name in CRITERION_CONFIG above.
-    'criterion_config': CRITERION_CONFIG['mean_square_root'],  # loss function configurations, the key should the be same with criterion
+    'criterion_config': CRITERION_CONFIG['cross_entropy'],  # loss function configurations, the key should the be same with criterion
     'loss_weight': None,  # None / 'balance' / 'dynamic' / list with shape num_classes. Weights for loss function. Don't use it with weighted sampling!
     'loss_weight_decay_rate': 0.9,  # if loss_weights is dynamic, loss weight will decay from balance to equivalent weights
     'learning_rate': 0.001,  # initial learning rate
