@@ -67,15 +67,19 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
                 logger.add_image('input samples', samples, 0, dataformats='CHW')
 
             progress.set_description(
-                'epoch: {}, loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
-                .format(epoch, avg_loss, avg_acc, avg_kappa)
+                'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
+                .format(epoch, train_config['epochs'], avg_loss, avg_acc, avg_kappa)
             )
 
         # validation performance
-        eval(model, val_loader, criterion, estimator, device)
-        acc = estimator.get_accuracy(6)
-        kappa = estimator.get_kappa(6)
-        print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
+        if epoch % train_config['eval_interval'] == 0:
+            eval(model, val_loader, criterion, estimator, device)
+            acc = estimator.get_accuracy(6)
+            kappa = estimator.get_kappa(6)
+            print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
+            if logger:
+                logger.add_scalar('validation accuracy', acc, epoch)
+                logger.add_scalar('validation kappa', kappa, epoch)
 
         # save model
         indicator = kappa if train_config['kappa_prior'] else acc
@@ -101,8 +105,6 @@ def train(model, train_config, data_config, train_dataset, val_dataset, save_pat
             logger.add_scalar('training accuracy', avg_acc, epoch)
             logger.add_scalar('training kappa', avg_kappa, epoch)
             logger.add_scalar('learning rate', curr_lr, epoch)
-            logger.add_scalar('validation accuracy', acc, epoch)
-            logger.add_scalar('validation kappa', kappa, epoch)
 
     # save final model
     save_weights(model, os.path.join(save_path, 'final_weights.pt'))
@@ -117,7 +119,8 @@ def evaluate(model, checkpoint, train_config, test_dataset, estimator, device):
         test_dataset,
         batch_size=train_config['batch_size'],
         num_workers=train_config['num_workers'],
-        shuffle=False
+        shuffle=False,
+        pin_memory=train_config['pin_memory']
     )
 
     print('Running on Test set...')
@@ -253,18 +256,20 @@ def initialize_lr_scheduler(train_config, optimizer):
     scheduler_strategy = train_config['lr_scheduler']
     scheduler_config = train_config['lr_scheduler_config']
 
-    lr_scheduler = None
-    if scheduler_strategy in scheduler_config.keys():
-        if scheduler_strategy == 'cosine':
-            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'multiple_steps':
-            lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'reduce_on_plateau':
-            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'exponential':
-            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
-        elif scheduler_strategy == 'clipped_cosine':
-            lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
+    if scheduler_strategy in [None, 'None']:
+        lr_scheduler = None
+    if scheduler_strategy == 'cosine':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'multiple_steps':
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'reduce_on_plateau':
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'exponential':
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, **scheduler_config)
+    elif scheduler_strategy == 'clipped_cosine':
+        lr_scheduler = ClippedCosineAnnealingLR(optimizer, **scheduler_config)
+    else:
+        raise NotImplementedError('Not implemented learning rate scheduler.')
 
     if warmup_epochs > 0:
         warmup_scheduler = WarmupLRScheduler(optimizer, warmup_epochs, learning_rate)

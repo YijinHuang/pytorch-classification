@@ -14,7 +14,7 @@ def generate_dataset(data_config, data_path, data_index=None, batch_size=16, num
         data_config['std'] = std
 
     train_tf, test_tf = data_transforms(data_config)
-    if data_index:
+    if data_index not in [None, 'None']:
         datasets = generate_dataset_from_pickle(data_index, train_tf, test_tf)
     else:
         datasets = generate_dataset_from_folder(data_path, train_tf, test_tf)
@@ -30,7 +30,7 @@ def auto_statistics(data_path, data_index, batch_size, num_workers, input_size):
         transforms.ToTensor()
     ])
 
-    if data_index:
+    if data_index not in [None, 'None']:
         train_set = pickle.load(open(data_index, 'rb'))['train']
         train_dataset = DatasetFromDict(train_set, transform=transform)
     else:
