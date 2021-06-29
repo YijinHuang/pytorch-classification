@@ -1,0 +1,102 @@
+base:
+  data_path: /path/to/your/dataset
+  data_index: null # alternative way to build dataset. check README for more details
+  save_path: /path/to/save/folder
+  log_path: /path/to/save/log/folder
+  device: cuda
+  random_seed: 0
+
+data:
+  num_classes: 100 # number of classes
+  input_size: 224
+  mean: auto # 'auto' or a list of three numbers for RGB
+  std: auto # 'auto' or a list of three numbers for RGB
+  sampling_strategy: instance_balanced # instance_balanced / class_balanced / progressively_balanced. ref: https://arxiv.org/abs/1910.09217
+  sampling_weights_decay_rate: 0.9 # if sampling_strategy is progressively_balanced, sampling weight will change from class_balanced to instance_balanced
+  data_augmentation: # available operations are list in 'data_augmentation_args' below
+    - random_crop
+    - horizontal_flip
+    - vertical_flip
+    - color_distortion
+    - rotation
+    - translation
+
+train:
+  network: resnet50 # available networks are list in networks.yaml
+  pretrained: true # load weights from pre-trained model training on ImageNet
+  checkpoint: null # load weights from other pretrained model
+  epochs: 50
+  batch_size: 32
+  num_workers: 32 # number of cpus used to load data at each step
+  criterion: cross_entropy # available criterions are list in 'criterion_args' below
+  loss_weight: null # null / balance / dynamic / list with shape num_classes. Weights for loss function. Don't use it with weighted sampling!
+  loss_weight_decay_rate: 0 # if loss_weights is dynamic, loss weight will decay from balance to equivalent weights
+  warmup_epochs: 0 # set to 0 to disable warmup
+  kappa_prior: false # save model with higher kappa or higher accuracy in validation set
+  save_interval: 5 # the epoch interval of saving model
+  eval_interval: 1 # the epoch interval of evaluating model on val dataset
+  sample_view: false # save and visualize a batch of images on Tensorboard
+  sample_view_interval: 100 # the steps interval of saving samples on Tensorboard. Note that frequently saving images will slow down the training speed.
+  pin_memory: true # enables fast data transfer to CUDA-enabled GPUs
+
+solver:
+  optimizer: SGD # SGD / ADAM
+  learning_rate: 0.001 # initial learning rate
+  lr_scheduler: cosine # available schedulers are list in 'scheduler_args' below
+  momentum: 0.9 # only for SGD. set to 0 to disable momentum
+  nesterov: true # only for SGD.
+  weight_decay: 0.0005 # set to 0 to disable weight decay
+
+criterion_args:
+  cross_entropy: {}
+  mean_square_error: {}
+  mean_absolute_error: {}
+  smooth_L1: {}
+  kappa_loss: {}
+  focal_loss:
+    alpha: 5
+    reduction: mean
+
+scheduler_args:
+  exponential:
+    gamma: 0.6
+  multiple_steps:
+    milestones: [15, 25, 45]
+    gamma: 0.1
+  cosine:
+    T_max: 50
+    eta_min: 0
+  reduce_on_plateau:
+    mode: min
+    factor: 0.1
+    patience: 5
+    threshold: 0.0001
+    eps: 0.00001
+  clipped_cosine:
+    T_max: 50
+    min_lr: 0.0001
+
+data_augmentation_args:
+  horizontal_flip:
+    prob: 0.5
+  vertical_flip:
+    prob: 0.5
+  color_distortion:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.2
+    hue: 0.1
+  random_crop: # randomly crop and resize to input_size
+    scale: [0.87, 1.15] # range of size of the origin size cropped
+    ratio: [0.7, 1.3] # range of aspect ratio of the origin aspect ratio cropped
+  rotation:
+    degrees: [-180, 180]
+  translation:
+    range: [0.2, 0.2]
+  grayscale: # randomly convert image to grayscale
+    prob: 0.5
+  gaussian_blur:
+    prob: 0.2
+    kernel_size: 7
+    sigma: 0.5
+  value_fill: 0 # NOT a data augmentation operation. pixel fill value for the area outside the image

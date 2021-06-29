@@ -42,7 +42,7 @@ Organize your images as follows:
     ├── test
 ```
 
-Here, `val` and `test` directory have the same structure of  `train`.  Then replace the value of 'data_path' in BASIC_CONFIG in `config.py` with path to your_data_dir and keep 'data_index' as None.
+Here, `val` and `test` directory have the same structure of  `train`.  Then replace the value of 'data_path' in BASIC_CONFIG in `configs/default.yaml` with path to your_data_dir and keep 'data_index' as None.
 
 - Dict-form dataset:
 
@@ -75,14 +75,21 @@ import pickle
 pickle.dump(your_data_dict, open('path/to/pickle/file', 'wb'))
 ```
 
-Finally, replace the value of 'data_index' in BASIC_CONFIG in `config.py` with 'path/to/pickle/file' and set 'data_path' as None.
+Finally, replace the value of 'data_index' in BASIC_CONFIG in `configs/default.yaml` with 'path/to/pickle/file' and set 'data_path' as None.
 
-**2. Update your training configurations and hyperparameters in `config.py`.**
+**2. Update your training configurations and hyperparameters in `configs/default.yaml`.**
 
 **3. Run to train:**
 
 ```shell
 $ CUDA_VISIBLE_DEVICES=x python main.py
+```
+
+Optional arguments:
+```
+-c yaml_file      Specify the config file (default: configs/default.yaml)
+-o                Overwrite save_path and log_path without warning
+-p                Print configs before training
 ```
 
 **4. Monitor your training progress in website [127.0.0.1:6006](127.0.0.1:6006) by running:**

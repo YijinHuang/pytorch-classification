@@ -1,11 +1,52 @@
-import os
-import pickle
-
+import yaml
 import torch
-from PIL import Image
+import shutil
+import argparse
+
 from tqdm import tqdm
+from munch import munchify
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+
+from utils.const import regression_loss
+
+
+def parse_config():
+    parser = argparse.ArgumentParser(allow_abbrev=True)
+    parser.add_argument(
+        '-config',
+        type=str,
+        default='./configs/default.yaml',
+        help='Path to the config file.'
+    )
+    parser.add_argument(
+        '-overwrite',
+        action='store_true',
+        default=False,
+        help='Overwrite file in the save path.'
+    )
+    parser.add_argument(
+        '-print_config',
+        action='store_true',
+        default=False,
+        help='Print details of configs.'
+    )
+    args = parser.parse_args()
+    return args
+
+
+def load_config(path):
+    with open(path, 'r') as file:
+        cfg = yaml.load(file, Loader=yaml.FullLoader)
+    return munchify(cfg)
+
+
+def copy_config(src, dst):
+    shutil.copy(src, dst)
+
+
+def save_config(config, path):
+    with open(path, 'w') as file:
+        yaml.safe_dump(config, file)
 
 
 def mean_and_std(train_dataset, batch_size, num_workers):
@@ -83,12 +124,6 @@ def print_dataset_info(datasets):
     print('=========================')
 
 
-def pil_loader(path):
-    with open(path, 'rb') as f:
-        img = Image.open(f)
-        return img.convert('RGB')
-
-
 # unnormalize image for visualization
 def inverse_normalize(tensor, mean, std):
     for t, m, s in zip(tensor, mean, std):
@@ -106,7 +141,7 @@ def one_hot(labels, num_classes, device, dtype):
 def select_target_type(y, criterion):
     if criterion in ['cross_entropy', 'kappa_loss']:
         y = y.long()
-    elif criterion in ['mean_square_root', 'L1', 'smooth_L1']:
+    elif criterion in ['mean_square_error', 'mean_absolute_error', 'smooth_L1']:
         y = y.float()
     elif criterion in ['focal_loss']:
         y = y.to(dtype=torch.int64)
@@ -118,6 +153,6 @@ def select_target_type(y, criterion):
 # convert output dimension of network according to criterion
 def select_out_features(num_classes, criterion):
     out_features = num_classes
-    if criterion in ['mean_square_root', 'L1', 'smooth_L1']:
+    if criterion in regression_loss:
         out_features = 1
     return out_features

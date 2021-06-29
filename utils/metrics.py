@@ -3,16 +3,16 @@ import numpy as np
 
 
 class Estimator():
-    def __init__(self, criterion, num_classes, device='cpu', thresholds=None):
+    def __init__(self, criterion, num_classes, thresholds=None):
         self.criterion = criterion
         self.num_classes = num_classes
-        self.device = device
         self.thresholds = [-0.5 + i for i in range(num_classes)] if not thresholds else thresholds
 
         self.reset()  # intitialization
 
     def update(self, predictions, targets):
-        targets = targets.data
+        targets = targets.data.cpu()
+        predictions = predictions.data.cpu()
         predictions = self.to_prediction(predictions)
 
         # update metrics
@@ -37,16 +37,14 @@ class Estimator():
         self.conf_mat = np.zeros((self.num_classes, self.num_classes), dtype=int)
 
     def to_prediction(self, predictions):
-        predictions = predictions.data
-
         if self.criterion in ['cross_entropy', 'focal_loss', 'kappa_loss']:
             predictions = torch.tensor(
                 [torch.argmax(p) for p in predictions]
-            ).to(self.device).long()
-        elif self.criterion in ['mean_square_root', 'L1', 'smooth_L1']:
+            ).long()
+        elif self.criterion in ['mean_square_error', 'mean_absolute_error', 'smooth_L1']:
             predictions = torch.tensor(
                 [self.classify(p.item()) for p in predictions]
-            ).to(self.device).float()
+            ).float()
         else:
             raise NotImplementedError('Not implemented criterion.')
 
