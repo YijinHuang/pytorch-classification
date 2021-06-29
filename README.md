@@ -15,6 +15,21 @@
 - Multiple GPUs support
 
 
+### Installation
+Recommended enviorment:
+- python 3.8+
+- pytorch 1.7.1+
+- torchvision 0.8.2+
+- munch
+- tensorboard
+- tqdm
+
+To install the dependencies, run:
+```shell
+$ git clone https://github.com/YijinHuang/pytorch-classification.git
+$ cd pytorch-classification
+$ pip install -r requirements.txt
+```
 
 
 ### How to use
