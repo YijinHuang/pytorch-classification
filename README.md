@@ -16,7 +16,7 @@
 
 
 ### Installation
-Recommended enviorment:
+Recommended enviornment:
 - python 3.8+
 - pytorch 1.7.1+
 - torchvision 0.8.2+
@@ -57,7 +57,7 @@ Organize your images as follows:
     ├── test
 ```
 
-Here, `val` and `test` directory have the same structure of  `train`.  Then replace the value of 'data_path' in BASIC_CONFIG in `configs/default.yaml` with path to your_data_dir and keep 'data_index' as None.
+Here, `val` and `test` directory have the same structure of  `train`.  Then replace the value of 'data_path' in BASIC_CONFIG in `configs/default.yaml` with path to your_data_dir and keep 'data_index' as null.
 
 - Dict-form dataset:
 
@@ -90,7 +90,7 @@ import pickle
 pickle.dump(your_data_dict, open('path/to/pickle/file', 'wb'))
 ```
 
-Finally, replace the value of 'data_index' in BASIC_CONFIG in `configs/default.yaml` with 'path/to/pickle/file' and set 'data_path' as None.
+Finally, replace the value of 'data_index' in BASIC_CONFIG in `configs/default.yaml` with 'path/to/pickle/file' and set 'data_path' as null.
 
 **2. Update your training configurations and hyperparameters in `configs/default.yaml`.**
 
