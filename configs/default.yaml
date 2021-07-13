@@ -27,7 +27,7 @@ train:
   checkpoint: null # load weights from other pretrained model
   epochs: 50
   batch_size: 32
-  num_workers: 32 # number of cpus used to load data at each step
+  num_workers: 8 # number of cpus used to load data at each step
   criterion: cross_entropy # available criterions are list in 'criterion_args' below
   loss_weight: null # null / balance / dynamic / list with shape num_classes. Weights for loss function. Don't use it with weighted sampling!
   loss_weight_decay_rate: 0 # if loss_weights is dynamic, loss weight will decay from balance to equivalent weights
@@ -42,7 +42,7 @@ train:
 solver:
   optimizer: SGD # SGD / ADAM
   learning_rate: 0.001 # initial learning rate
-  lr_scheduler: cosine # available schedulers are list in 'scheduler_args' below
+  lr_scheduler: cosine # available schedulers are list in 'scheduler_args' below. please remember to update scheduler_args when number of epoch changes.
   momentum: 0.9 # only for SGD. set to 0 to disable momentum
   nesterov: true # only for SGD.
   weight_decay: 0.0005 # set to 0 to disable weight decay
@@ -57,21 +57,22 @@ criterion_args:
     alpha: 5
     reduction: mean
 
+# please refer to documents of torch.optim
 scheduler_args:
   exponential:
-    gamma: 0.6
+    gamma: 0.6 # multiplicative factor of learning rate decay
   multiple_steps:
     milestones: [15, 25, 45]
-    gamma: 0.1
+    gamma: 0.1 # multiplicative factor of learning rate decay
   cosine:
-    T_max: 50
-    eta_min: 0
+    T_max: 50 # maximum number of iterations
+    eta_min: 0 # minimum learning rate
   reduce_on_plateau:
     mode: min
-    factor: 0.1
-    patience: 5
-    threshold: 0.0001
-    eps: 0.00001
+    factor: 0.1 # new learning rate = factor * learning rate
+    patience: 5 # number of epochs with no improvement after which learning rate will be reduced.
+    threshold: 0.0001 # threshold for measuring the new optimum
+    eps: 0.00001 # minimal decay applied to learning rate
   clipped_cosine:
     T_max: 50
     min_lr: 0.0001
@@ -82,20 +83,24 @@ data_augmentation_args:
   vertical_flip:
     prob: 0.5
   color_distortion:
+    prob: 0.5
     brightness: 0.2
     contrast: 0.2
     saturation: 0.2
     hue: 0.1
   random_crop: # randomly crop and resize to input_size
+    prob: 0.5
     scale: [0.87, 1.15] # range of size of the origin size cropped
     ratio: [0.7, 1.3] # range of aspect ratio of the origin aspect ratio cropped
   rotation:
+    prob: 0.5
     degrees: [-180, 180]
   translation:
+    prob: 0.5
     range: [0.2, 0.2]
   grayscale: # randomly convert image to grayscale
     prob: 0.5
-  gaussian_blur:
+  gaussian_blur: # only available for torch version >= 1.7.1.
     prob: 0.2
     kernel_size: 7
     sigma: 0.5
