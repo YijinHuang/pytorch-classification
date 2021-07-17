@@ -1,10 +1,10 @@
-## Pytorch Classification
+# Pytorch Classification
 
 - A general, feasible and extensible framework for 2D image classification.
 
 
 
-### Features
+## Features
 
 - Easy to configure (model, hyperparameters)
 - Training progress monitoring and visualization
@@ -15,8 +15,10 @@
 - Multiple GPUs support
 
 
-### Installation
-Recommended enviornment:
+
+## Installation
+
+Recommended environment:
 - python 3.8+
 - pytorch 1.7.1+
 - torchvision 0.8.2+
@@ -33,7 +35,8 @@ $ pip install -r requirements.txt
 ```
 
 
-### How to use
+
+## How to use
 
 **1. Use one of the following two methods to build your dataset:**
 
