@@ -64,7 +64,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
             # visualize samples
             if cfg.train.sample_view and step % cfg.train.sample_view_interval == 0:
                 samples = torchvision.utils.make_grid(X)
-                samples = inverse_normalize(samples, cfg.train.data.mean, cfg.train.std)
+                samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
                 logger.add_image('input samples', samples, 0, dataformats='CHW')
 
             progress.set_description(
