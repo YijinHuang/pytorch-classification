@@ -82,12 +82,12 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 logger.add_scalar('validation accuracy', acc, epoch)
                 logger.add_scalar('validation kappa', kappa, epoch)
 
-        # save model
-        indicator = kappa if cfg.train.kappa_prior else acc
-        if indicator > max_indicator:
-            save_weights(model, os.path.join(cfg.base.save_path, 'best_validation_weights.pt'))
-            max_indicator = indicator
-            print_msg('Best in validation set. Model save at {}'.format(cfg.base.save_path))
+            # save model
+            indicator = kappa if cfg.train.kappa_prior else acc
+            if indicator > max_indicator:
+                save_weights(model, os.path.join(cfg.base.save_path, 'best_validation_weights.pt'))
+                max_indicator = indicator
+                print_msg('Best in validation set. Model save at {}'.format(cfg.base.save_path))
 
         if epoch % cfg.train.save_interval == 0:
             save_weights(model, os.path.join(cfg.base.save_path, 'epoch_{}.pt'.format(epoch)))
