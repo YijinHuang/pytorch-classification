@@ -155,9 +155,9 @@ def eval(model, dataloader, criterion, estimator, device):
 # define weighted_sampler
 def initialize_sampler(cfg, train_dataset):
     sampling_strategy = cfg.data.sampling_strategy
-    if sampling_strategy == 'balance':
+    if sampling_strategy == 'class_balanced':
         weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
-    elif sampling_strategy == 'dynamic':
+    elif sampling_strategy == 'progressively_balanced':
         weighted_sampler = ScheduledWeightedSampler(train_dataset, cfg.data.sampling_weights_decay_rate)
     else:
         weighted_sampler = None

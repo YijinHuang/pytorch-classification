@@ -19,7 +19,6 @@ data:
     - vertical_flip
     - color_distortion
     - rotation
-    - translation
 
 train:
   network: resnet50 # available networks are list in networks.yaml
@@ -86,14 +85,14 @@ data_augmentation_args:
     prob: 1.0
     brightness: 0.2
     contrast: 0.2
-    saturation: 0
-    hue: 0
+    saturation: 0.1
+    hue: 0.1
   random_crop: # randomly crop and resize to input_size
-    prob: 0
+    prob: 1.0
     scale: [0.87, 1.15] # range of size of the origin size cropped
     ratio: [0.7, 1.3] # range of aspect ratio of the origin aspect ratio cropped
   rotation:
-    prob: 1
+    prob: 1.0
     degrees: [-180, 180]
   translation:
     prob: 1
