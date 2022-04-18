@@ -5,10 +5,13 @@ base:
   log_path: /path/to/save/log/folder
   device: cuda
   random_seed: 0
+  overwrite: false # overwrite save_path
+  progress: true # real-time metric display, output cannot be redirected
 
 data:
-  num_classes: 100 # number of classes
-  input_size: 224
+  num_classes: 1000 # number of classes
+  input_size: 224 # image size
+  in_channels: 3 # number of image channel
   mean: auto # 'auto' or a list of three numbers for RGB
   std: auto # 'auto' or a list of three numbers for RGB
   sampling_strategy: instance_balanced # instance_balanced / class_balanced / progressively_balanced. ref: https://arxiv.org/abs/1910.09217
@@ -40,12 +43,13 @@ train:
   pin_memory: true # enables fast data transfer to CUDA-enabled GPUs
 
 solver:
-  optimizer: SGD # SGD / ADAM
+  optimizer: SGD # SGD / ADAM / ADAMW
   learning_rate: 0.001 # initial learning rate
   lr_scheduler: cosine # available schedulers are list in 'scheduler_args' below. please remember to update scheduler_args when number of epoch changes.
   momentum: 0.9 # only for SGD. set to 0 to disable momentum
   nesterov: true # only for SGD.
   weight_decay: 0.0005 # set to 0 to disable weight decay
+  adamw_betas: [0.9, 0.999] # for ADAMW optimizer
 
 criterion_args:
   cross_entropy: {}

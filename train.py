@@ -39,7 +39,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
 
         epoch_loss = 0
         estimator.reset()
-        progress = tqdm(enumerate(train_loader))
+        progress = tqdm(enumerate(train_loader)) if cfg.base.progress else enumerate(train_loader)
         for step, train_data in progress:
             X, y = train_data
             X, y = X.to(device), y.to(device)
@@ -67,10 +67,13 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
                 logger.add_image('input samples', samples, 0, dataformats='CHW')
 
-            progress.set_description(
-                'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'
-                .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
-            )
+            message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
+                      .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
+            if cfg.base.progress:
+                progress.set_description(message)
+        
+        if not cfg.base.progress:
+            print(message)
 
         # validation performance
         if epoch % cfg.train.eval_interval == 0:
@@ -231,6 +234,8 @@ def initialize_optimizer(cfg, model):
     weight_decay = cfg.solver.weight_decay
     momentum = cfg.solver.momentum
     nesterov = cfg.solver.nesterov
+    adamw_betas = cfg.solver.adamw_betas
+
     if optimizer_strategy == 'SGD':
         optimizer = torch.optim.SGD(
             model.parameters(),
@@ -243,6 +248,13 @@ def initialize_optimizer(cfg, model):
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=learning_rate,
+            weight_decay=weight_decay
+        )
+    elif optimizer_strategy == 'ADAMW':
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=learning_rate,
+            betas=adamw_betas,
             weight_decay=weight_decay
         )
     else:

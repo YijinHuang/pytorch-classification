@@ -1,24 +1,49 @@
+# Please refer to https://github.com/rwightman/pytorch-image-models for more available architectures
 available_network:
+  # vgg
   - vgg11
   - vgg13
   - vgg16
   - vgg19
+  # resnet
   - resnet18
   - resnet34
   - resnet50
   - resnet101
   - resnet152
+  # densenet
   - densenet121
   - densenet161
   - densenet169
   - densenet201
-  - wide_resnet50
-  - wide_resnet101
-  - resnext50
-  - resnext101
-  - mobilenet
-  - squeezenet
-  - shufflenet_0_5
-  - shufflenet_1_0
-  - shufflenet_1_5
-  - shufflenet_2_0
+  # resnext
+  - resnext50_32x4d
+  - resnext101_32x4d
+  # mobilenet
+  - mobilenetv3_small_050
+  - mobilenetv3_small_075
+  - mobilenetv3_small_100
+  # ViT
+  - vit_small_patch16_224
+  - vit_small_patch32_224
+  - vit_small_patch16_384
+  - vit_small_patch32_384
+  - vit_base_patch16_224
+  - vit_base_patch32_224
+  - vit_base_patch16_384
+  - vit_base_patch32_384
+  - vit_large_patch16_224
+  - vit_large_patch16_384
+  - vit_large_patch32_224
+  - vit_large_patch32_384
+  # Hybrid ViT (CNN as projection)
+  - vit_small_r26_s32_224
+  - vit_small_r26_s32_384
+  - vit_base_r50_s16_224
+  - vit_base_r50_s16_384
+  # Swin-ViT (Require higher torch version for loading pretrained weights)
+  - swin_small_patch4_window7_224
+  - swin_base_patch4_window7_224
+  - swin_base_patch4_window12_384
+  - swin_large_patch4_window7_224
+  - swin_large_patch4_window12_384

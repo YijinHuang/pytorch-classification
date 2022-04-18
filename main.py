@@ -21,9 +21,12 @@ def main():
     save_path = cfg.base.save_path
     log_path = cfg.base.log_path
     if os.path.exists(save_path):
-        warning = 'Save path {} exists.\nDo you want to overwrite it? (y/n)\n'.format(save_path)
-        if not (args.overwrite or input(warning) == 'y'):
-            sys.exit(0)
+        if cfg.base.overwrite:
+            print('Save path {} exists and will be overwrited.'.format(save_path))
+        else:
+            warning = 'Save path {} exists.\nDo you want to overwrite it? (y/n)\n'.format(save_path)
+            if not input(warning) == 'y':
+                sys.exit(0)
     else:
         os.makedirs(save_path)
 
