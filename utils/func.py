@@ -1,3 +1,6 @@
+import os
+import sys
+
 import yaml
 import torch
 import shutil
@@ -35,7 +38,8 @@ def load_config(path):
 
 
 def copy_config(src, dst):
-    shutil.copy(src, dst)
+    if os.path.split(src)[0] != dst:
+        shutil.copyfile(src, dst)
 
 
 def save_config(config, path):
@@ -150,3 +154,12 @@ def select_out_features(num_classes, criterion):
     if criterion in regression_loss:
         out_features = 1
     return out_features
+
+
+def exit_with_error(msg):
+    print(msg)
+    sys.exit(1)
+
+
+def is_main(cfg):
+    return (not cfg.dist.distributed) or cfg.dist.rank == 0

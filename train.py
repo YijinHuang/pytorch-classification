@@ -1,23 +1,25 @@
 import os
+import sys
 
 import torch
 import torchvision
 import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
+from torch.distributed import all_reduce, all_gather, ReduceOp
 
+from utils.func import *
 from modules.loss import *
 from modules.scheduler import *
-from utils.func import save_weights, print_msg, inverse_normalize, select_target_type
 
 
 def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
     device = cfg.base.device
     optimizer = initialize_optimizer(cfg, model)
-    weighted_sampler = initialize_sampler(cfg, train_dataset)
+    train_sampler, val_sampler = initialize_sampler(cfg, train_dataset, val_dataset)
     lr_scheduler, warmup_scheduler = initialize_lr_scheduler(cfg, optimizer)
     loss_function, loss_weight_scheduler = initialize_loss(cfg, train_dataset)
-    train_loader, val_loader = initialize_dataloader(cfg, train_dataset, val_dataset, weighted_sampler)
+    train_loader, val_loader = initialize_dataloader(cfg, train_dataset, val_dataset, train_sampler, val_sampler)
 
     # start training
     model.train()
@@ -25,8 +27,10 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
     avg_loss, avg_acc, avg_kappa = 0, 0, 0
     for epoch in range(1, cfg.train.epochs + 1):
         # resampling weight update
-        if weighted_sampler:
-            weighted_sampler.step()
+        if cfg.dist.distributed:
+            train_sampler.set_epoch(epoch)
+        elif train_sampler:
+            train_sampler.step()
 
         # update loss weights
         if loss_weight_scheduler:
@@ -42,7 +46,8 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
         progress = tqdm(enumerate(train_loader)) if cfg.base.progress else enumerate(train_loader)
         for step, train_data in progress:
             X, y = train_data
-            X, y = X.to(device), y.to(device)
+            X = X.cuda(cfg.dist.gpu) if cfg.dist.distributed else X.to(device)
+            y = y.cuda(cfg.dist.gpu) if cfg.dist.distributed else y.to(device)
             y = select_target_type(y, cfg.train.criterion)
 
             # forward
@@ -55,44 +60,54 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
             optimizer.step()
 
             # metrics
-            epoch_loss += loss.item()
-            avg_loss = epoch_loss / (step + 1)
-            estimator.update(y_pred, y)
-            avg_acc = estimator.get_accuracy(6)
-            avg_kappa = estimator.get_kappa(6)
+            if cfg.dist.distributed:
+                all_reduce(loss, ReduceOp.AVG)
+                y_pred_list = [torch.zeros_like(y_pred) for _ in range(cfg.dist.world_size)]
+                y_list = [torch.zeros_like(y) for _ in range(cfg.dist.world_size)]
+                all_gather(y_pred_list, y_pred)
+                all_gather(y_list, y)
+                y_pred = torch.cat(y_pred_list, dim=0)
+                y = torch.cat(y_list, dim=0)
 
-            # visualize samples
-            if cfg.train.sample_view and step % cfg.train.sample_view_interval == 0:
-                samples = torchvision.utils.make_grid(X)
-                samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
-                logger.add_image('input samples', samples, 0, dataformats='CHW')
+            if is_main(cfg):
+                epoch_loss += loss.item()
+                avg_loss = epoch_loss / (step + 1)
+                estimator.update(y_pred, y)
+                avg_acc = estimator.get_accuracy(6)
+                avg_kappa = estimator.get_kappa(6)
 
-            message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
-                      .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
-            if cfg.base.progress:
-                progress.set_description(message)
-        
-        if not cfg.base.progress:
+                # visualize samples
+                if cfg.train.sample_view and step % cfg.train.sample_view_interval == 0:
+                    samples = torchvision.utils.make_grid(X)
+                    samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
+                    logger.add_image('input samples', samples, 0, dataformats='CHW')
+
+                message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
+                        .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
+                if cfg.base.progress:
+                    progress.set_description(message)
+            
+        if is_main(cfg) and not cfg.base.progress:
             print(message)
 
         # validation performance
         if epoch % cfg.train.eval_interval == 0:
-            eval(model, val_loader, cfg.train.criterion, estimator, device)
+            eval(cfg, model, val_loader, cfg.train.criterion, estimator, device)
             acc = estimator.get_accuracy(6)
             kappa = estimator.get_kappa(6)
             print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
-            if logger:
+            if is_main(cfg) and logger:
                 logger.add_scalar('validation accuracy', acc, epoch)
                 logger.add_scalar('validation kappa', kappa, epoch)
 
             # save model
             indicator = kappa if cfg.train.kappa_prior else acc
-            if indicator > max_indicator:
+            if is_main(cfg) and indicator > max_indicator:
                 save_weights(model, os.path.join(cfg.base.save_path, 'best_validation_weights.pt'))
                 max_indicator = indicator
                 print_msg('Best in validation set. Model save at {}'.format(cfg.base.save_path))
 
-        if epoch % cfg.train.save_interval == 0:
+        if is_main(cfg) and epoch % cfg.train.save_interval == 0:
             save_weights(model, os.path.join(cfg.base.save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
@@ -104,51 +119,70 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 lr_scheduler.step()
 
         # record
-        if logger:
+        if is_main(cfg) and logger:
             logger.add_scalar('training loss', avg_loss, epoch)
             logger.add_scalar('training accuracy', avg_acc, epoch)
             logger.add_scalar('training kappa', avg_kappa, epoch)
             logger.add_scalar('learning rate', curr_lr, epoch)
 
     # save final model
-    save_weights(model, os.path.join(cfg.base.save_path, 'final_weights.pt'))
-    if logger:
+    if is_main(cfg):
+        save_weights(model, os.path.join(cfg.base.save_path, 'final_weights.pt'))
+
+    if is_main(cfg) and logger:
         logger.close()
 
 
 def evaluate(cfg, model, checkpoint, test_dataset, estimator):
-    weights = torch.load(checkpoint)
+    if cfg.dist.distributed:
+        loc = 'cuda:{}'.format(cfg.dist.gpu)
+        weights = torch.load(checkpoint, map_location=loc)
+    else:
+        weights = torch.load(checkpoint)
+
     model.load_state_dict(weights, strict=True)
+    test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset) if cfg.dist.distributed else None
     test_loader = DataLoader(
         test_dataset,
+        shuffle=(test_sampler is None),
+        sampler=test_sampler,
         batch_size=cfg.train.batch_size,
         num_workers=cfg.train.num_workers,
-        shuffle=False,
         pin_memory=cfg.train.pin_memory
     )
 
     print('Running on Test set...')
-    eval(model, test_loader, cfg.train.criterion, estimator, cfg.base.device)
+    eval(cfg, model, test_loader, cfg.train.criterion, estimator, cfg.base.device)
 
-    print('========================================')
-    print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
-    print('Confusion Matrix:')
-    print(estimator.conf_mat)
-    print('quadratic kappa: {}'.format(estimator.get_kappa(6)))
-    print('========================================')
+    if is_main(cfg):
+        print('========================================')
+        print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
+        print('Confusion Matrix:')
+        print(estimator.conf_mat)
+        print('quadratic kappa: {}'.format(estimator.get_kappa(6)))
+        print('========================================')
 
 
-def eval(model, dataloader, criterion, estimator, device):
+def eval(cfg, model, dataloader, criterion, estimator, device):
     model.eval()
     torch.set_grad_enabled(False)
 
     estimator.reset()
     for test_data in dataloader:
         X, y = test_data
-        X, y = X.to(device), y.to(device)
+        X = X.cuda(cfg.dist.gpu) if cfg.dist.distributed else X.to(device)
+        y = y.cuda(cfg.dist.gpu) if cfg.dist.distributed else y.to(device)
         y = select_target_type(y, criterion)
 
         y_pred = model(X)
+
+        if cfg.dist.distributed:
+            y_pred_list = [torch.zeros_like(y_pred) for _ in range(cfg.dist.world_size)]
+            y_list = [torch.zeros_like(y) for _ in range(cfg.dist.world_size)]
+            all_gather(y_pred_list, y_pred)
+            all_gather(y_list, y)
+            y_pred = torch.cat(y_pred_list, dim=0)
+            y = torch.cat(y_list, dim=0)
         estimator.update(y_pred, y)
 
     model.train()
@@ -156,27 +190,50 @@ def eval(model, dataloader, criterion, estimator, device):
 
 
 # define weighted_sampler
-def initialize_sampler(cfg, train_dataset):
+def initialize_sampler(cfg, train_dataset, val_dataset):
+    sampler = None
     sampling_strategy = cfg.data.sampling_strategy
-    if sampling_strategy == 'class_balanced':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, 1)
-    elif sampling_strategy == 'progressively_balanced':
-        weighted_sampler = ScheduledWeightedSampler(train_dataset, cfg.data.sampling_weights_decay_rate)
+
+    if cfg.dist.distributed:
+        if sampling_strategy != 'instance_balanced':
+            msg = 'Resampling is not allowed when distributed parallel is applied. \
+                   Please set sampling_strategy to instance_balanced.'
+            exit_with_error(msg)
+
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            train_dataset,
+            num_replicas=cfg.dist.world_size,
+            rank=cfg.dist.rank
+        )
+        val_sampler = torch.utils.data.distributed.DistributedSampler(
+            val_dataset,
+            num_replicas=cfg.dist.world_size,
+            rank=cfg.dist.rank
+        )
     else:
-        weighted_sampler = None
-    return weighted_sampler
+        val_sampler = None
+        if sampling_strategy == 'class_balanced':
+            train_sampler = ScheduledWeightedSampler(train_dataset, 1)
+        elif sampling_strategy == 'progressively_balanced':
+            train_sampler = ScheduledWeightedSampler(train_dataset, cfg.data.sampling_weights_decay_rate)
+        elif sampling_strategy == 'instance_balanced':
+            train_sampler = None
+        else:
+            raise NotImplementedError('Not implemented resampling strategy.')
+
+    return train_sampler, val_sampler
 
 
 # define data loader
-def initialize_dataloader(cfg, train_dataset, val_dataset, weighted_sampler):
+def initialize_dataloader(cfg, train_dataset, val_dataset, train_sampler, val_sampler):
     batch_size = cfg.train.batch_size
     num_workers = cfg.train.num_workers
     pin_memory = cfg.train.pin_memory
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=(weighted_sampler is None),
-        sampler=weighted_sampler,
+        shuffle=(train_sampler is None),
+        sampler=train_sampler,
         num_workers=num_workers,
         drop_last=True,
         pin_memory=pin_memory
@@ -184,7 +241,8 @@ def initialize_dataloader(cfg, train_dataset, val_dataset, weighted_sampler):
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=(val_sampler is None),
+        sampler=val_sampler,
         num_workers=num_workers,
         drop_last=False,
         pin_memory=pin_memory

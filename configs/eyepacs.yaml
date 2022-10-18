@@ -4,9 +4,19 @@ base:
   save_path: /path/to/save/folder
   log_path: /path/to/save/log/folder
   device: cuda
-  random_seed: 1
+  random_seed: 1 # set to -1 to disable random seed
+  cudnn_deterministic: False # set to True to turn on CUDNN deterministic setting, but it may slow down your training
   overwrite: false # overwrite save_path
   progress: true # real-time metric display, output cannot be redirected
+
+dist:
+  distributed: true # distributed data parallel (DDP) model for multiple gpus training
+  backend: nccl # default backend for DDP
+  nodes: 1 # number of nodes for distributed training 
+  n_gpus: null # use all visiable gpus when n_gpus is set to null
+  addr: '127.0.0.1' # address used to set up distributed training
+  port: '29500' # port used to set up distributed training
+  rank: 0 # node rank for distributed training
 
 data:
   num_classes: 5 # number of classes
@@ -25,6 +35,7 @@ data:
 
 train:
   network: resnet50 # available networks are list in networks.yaml
+  backend: torchvision # network builder backend (timm or torchvision)
   pretrained: true # load weights from pre-trained model training on ImageNet
   checkpoint: null # load weights from other pretrained model
   epochs: 25

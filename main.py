@@ -1,9 +1,12 @@
 import os
 import sys
 import random
+import builtins
 
 import torch
 import numpy as np
+import torch.distributed as dist
+import torch.multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.func import *
@@ -17,22 +20,6 @@ def main():
     args = parse_config()
     cfg = load_config(args.config)
 
-    # create folder
-    save_path = cfg.base.save_path
-    log_path = cfg.base.log_path
-    if os.path.exists(save_path):
-        if cfg.base.overwrite:
-            print('Save path {} exists and will be overwrited.'.format(save_path))
-        else:
-            warning = 'Save path {} exists.\nDo you want to overwrite it? (y/n)\n'.format(save_path)
-            if not input(warning) == 'y':
-                sys.exit(0)
-    else:
-        os.makedirs(save_path)
-
-    logger = SummaryWriter(log_path)
-    copy_config(args.config, save_path)
-
     # print configuration
     if args.print_config:
         print_config({
@@ -43,8 +30,65 @@ def main():
     else:
         print_msg('LOADING CONFIG FILE: {}'.format(args.config))
 
+    if cfg.base.random_seed != -1:
+        set_random_seed(cfg.base.random_seed, cfg.base.cudnn_deterministic)
+
+    # create folder
+    save_path = cfg.base.save_path
+    if os.path.exists(save_path):
+        if cfg.base.overwrite:
+            print('Save path {} exists and will be overwrited.'.format(save_path))
+        else:
+            warning = 'Save path {} exists.\nDo you want to overwrite it? (y/n)\n'.format(save_path)
+            if not input(warning) == 'y':
+                sys.exit(0)
+    else:
+        os.makedirs(save_path)
+    copy_config(args.config, cfg.base.save_path)
+
+    n_gpus = cfg.dist.n_gpus if cfg.dist.n_gpus else torch.cuda.device_count()
+    if n_gpus <= 1:
+        cfg.dist.distributed = False
+        print_msg('SINGLE GPU MODE')
+    else:
+        cfg.dist.distributed = True
+        print_msg('DISTRIBUTED GPU MODE')
+
+    if cfg.dist.distributed:
+        cfg.dist.world_size = n_gpus * cfg.dist.nodes
+        os.environ['MASTER_ADDR'] = cfg.dist.addr
+        os.environ['MASTER_PORT'] = cfg.dist.port
+        mp.spawn(worker, nprocs=n_gpus, args=(n_gpus, cfg))
+    else:
+        worker(0, 1, cfg)
+
+
+def worker(gpu, n_gpus, cfg):
+    if cfg.dist.distributed:
+        torch.cuda.set_device(gpu)
+        cfg.dist.gpu = gpu
+        cfg.dist.rank = cfg.dist.rank * n_gpus + gpu
+        dist.init_process_group(
+            backend=cfg.dist.backend,
+            init_method='env://',
+            world_size=cfg.dist.world_size,
+            rank=cfg.dist.rank
+        )
+        torch.distributed.barrier()
+
+        cfg.train.batch_size = int(cfg.train.batch_size / cfg.dist.world_size)
+        cfg.train.num_workers = int((cfg.train.num_workers + n_gpus - 1) / n_gpus)
+
+        # suppress printing
+        if cfg.dist.gpu != 0 or cfg.dist.rank != 0:
+            cfg.base.progress = False
+            def print_pass(*args):
+                pass
+            builtins.print = print_pass
+
+    logger = SummaryWriter(cfg.base.log_path) if is_main(cfg) else None
+
     # train
-    set_random_seed(cfg.base.random_seed)
     model = generate_model(cfg)
     train_dataset, test_dataset, val_dataset = generate_dataset(cfg)
     estimator = Estimator(cfg.train.criterion, cfg.data.num_classes)
@@ -56,22 +100,24 @@ def main():
         estimator=estimator,
         logger=logger
     )
+    if cfg.dist.distributed:
+        torch.distributed.barrier()
 
     # test
     print('This is the performance of the best validation model:')
-    checkpoint = os.path.join(save_path, 'best_validation_weights.pt')
+    checkpoint = os.path.join(cfg.base.save_path, 'best_validation_weights.pt')
     evaluate(cfg, model, checkpoint, test_dataset, estimator)
     print('This is the performance of the final model:')
-    checkpoint = os.path.join(save_path, 'final_weights.pt')
+    checkpoint = os.path.join(cfg.base.save_path, 'final_weights.pt')
     evaluate(cfg, model, checkpoint, test_dataset, estimator)
 
 
-def set_random_seed(seed):
+def set_random_seed(seed, deterministic=False):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.deterministic = deterministic
 
 
 if __name__ == '__main__':

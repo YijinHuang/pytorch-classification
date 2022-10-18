@@ -6,7 +6,7 @@ from torchvision import datasets
 from .loader import pil_loader
 from .transforms import data_transforms, simple_transform
 from .dataset import DatasetFromDict, CustomizedImageFolder
-from utils.func import mean_and_std, print_dataset_info
+from utils.func import mean_and_std, print_dataset_info, is_main
 
 
 def generate_dataset(cfg):
