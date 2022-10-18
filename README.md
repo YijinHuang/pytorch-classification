@@ -12,16 +12,18 @@
 - Kappa metric for evaluating model on imbalance dataset
 - Different learning rate schedulers and warmup support
 - Data augmentation
-- Multiple GPUs support
+- Multiple GPUs support (DDP mode)
+- ViT support
 
 
 
 ## Installation
 
 Recommended environment:
-- python 3.8+
-- pytorch 1.7.1+
-- torchvision 0.8.2+
+- python 3.8
+- pytorch 1.7.1
+- torchvision 0.8.2
+- timm 0.5.4
 - tqdm
 - munch
 - packaging
