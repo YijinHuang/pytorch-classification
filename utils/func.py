@@ -39,7 +39,7 @@ def load_config(path):
 
 def copy_config(src, dst):
     if os.path.split(src)[0] != dst:
-        shutil.copyfile(src, dst)
+        shutil.copy(src, dst)
 
 
 def save_config(config, path):
