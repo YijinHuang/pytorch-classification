@@ -6,4 +6,4 @@ torchvision==0.8.2
 tqdm==4.50.2
 packaging==21.0
 timm==0.5.4
-protobuf==3.19.0
+protobuf==3.19.5
