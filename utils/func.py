@@ -5,6 +5,7 @@ import yaml
 import torch
 import shutil
 import argparse
+import torch.nn as nn
 
 from tqdm import tqdm
 from munch import munchify
@@ -78,7 +79,7 @@ def mean_and_std(train_dataset, batch_size, num_workers):
 
 
 def save_weights(model, save_path):
-    if isinstance(model, torch.nn.DataParallel):
+    if isinstance(model, nn.DataParallel) or isinstance(model, nn.parallel.DistributedDataParallel):
         state_dict = model.module.state_dict()
     else:
         state_dict = model.state_dict()
