@@ -61,7 +61,9 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
 
             # metrics
             if cfg.dist.distributed:
-                all_reduce(loss, ReduceOp.AVG)
+                all_reduce(loss, ReduceOp.SUM)
+                loss = loss / cfg.dist.world_size
+
                 y_pred_list = [torch.zeros_like(y_pred) for _ in range(cfg.dist.world_size)]
                 y_list = [torch.zeros_like(y) for _ in range(cfg.dist.world_size)]
                 all_gather(y_pred_list, y_pred)
