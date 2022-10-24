@@ -33,6 +33,8 @@ To install the dependencies, run:
 ```shell
 $ git clone https://github.com/YijinHuang/pytorch-classification.git
 $ cd pytorch-classification
+$ conda create -n pycls python==3.8
+$ conda activate pycls
 $ pip install -r requirements.txt
 ```
 
