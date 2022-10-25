@@ -9,17 +9,22 @@ from utils.func import print_msg, select_out_features
 def generate_model(cfg):
     model = build_model(cfg)
 
+    if cfg.train.checkpoint:
+        if cfg.dist.distributed:
+            loc = 'cuda:{}'.format(cfg.dist.gpu)
+            weights = torch.load(cfg.train.checkpoint, map_location=loc)          
+        else:
+            weights = torch.load(cfg.train.checkpoint)
+
+        model.load_state_dict(weights, strict=True)
+        print_msg('Load weights form {}'.format(cfg.train.checkpoint))
+
     if cfg.dist.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = model.cuda(cfg.dist.gpu)
         model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.dist.gpu])
     else:
         model = model.to(cfg.base.device)
-
-    if cfg.train.checkpoint:
-        weights = torch.load(cfg.train.checkpoint)
-        model.load_state_dict(weights, strict=True)
-        print_msg('Load weights form {}'.format(cfg.train.checkpoint))
 
     return model
 

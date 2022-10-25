@@ -135,14 +135,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
         logger.close()
 
 
-def evaluate(cfg, model, checkpoint, test_dataset, estimator):
-    if cfg.dist.distributed:
-        loc = 'cuda:{}'.format(cfg.dist.gpu)
-        weights = torch.load(checkpoint, map_location=loc)
-    else:
-        weights = torch.load(checkpoint)
-
-    model.load_state_dict(weights, strict=True)
+def evaluate(cfg, model, test_dataset, estimator):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset) if cfg.dist.distributed else None
     test_loader = DataLoader(
         test_dataset,

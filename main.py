@@ -106,10 +106,15 @@ def worker(gpu, n_gpus, cfg):
     # test
     print('This is the performance of the best validation model:')
     checkpoint = os.path.join(cfg.base.save_path, 'best_validation_weights.pt')
-    evaluate(cfg, model, checkpoint, test_dataset, estimator)
+    cfg.train.checkpoint = checkpoint
+    model = generate_model(cfg)
+    evaluate(cfg, model, test_dataset, estimator)
+
     print('This is the performance of the final model:')
     checkpoint = os.path.join(cfg.base.save_path, 'final_weights.pt')
-    evaluate(cfg, model, checkpoint, test_dataset, estimator)
+    cfg.train.checkpoint = checkpoint
+    model = generate_model(cfg)
+    evaluate(cfg, model, test_dataset, estimator)
 
 
 def set_random_seed(seed, deterministic=False):
