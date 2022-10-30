@@ -30,9 +30,6 @@ def main():
     else:
         print_msg('LOADING CONFIG FILE: {}'.format(args.config))
 
-    if cfg.base.random_seed != -1:
-        set_random_seed(cfg.base.random_seed, cfg.base.cudnn_deterministic)
-
     # create folder
     save_path = cfg.base.save_path
     if os.path.exists(save_path):
@@ -85,6 +82,10 @@ def worker(gpu, n_gpus, cfg):
             def print_pass(*args):
                 pass
             builtins.print = print_pass
+
+    if cfg.base.random_seed != -1:
+        seed = cfg.base.random_seed + cfg.dist.rank # different seed for different process if distributed
+        set_random_seed(seed, cfg.base.cudnn_deterministic)
 
     logger = SummaryWriter(cfg.base.log_path) if is_main(cfg) else None
 
