@@ -33,7 +33,7 @@ To install the dependencies, run:
 ```shell
 $ git clone https://github.com/YijinHuang/pytorch-classification.git
 $ cd pytorch-classification
-$ conda create -n pycls python==3.8
+$ conda create -n pycls python=3.8
 $ conda activate pycls
 $ pip install -r requirements.txt
 ```
@@ -148,4 +148,19 @@ $ CUDA_VISIBLE_DEVICES=x python main.py -c ./configs/eyepacs.yaml
 ### Acknowledge
 
 We greatly thanks the reviews of MIDL 2022 for improving this work.
+
+
+
+## Citation
+
+If you find this repository useful, please cite the paper: 
+
+```
+@article{huang2021identifying,
+  title={Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation},
+  author={Huang, Yijin and Lin, Li and Cheng, Pujin and Lyu, Junyan and Tang, Xiaoying},
+  journal={arXiv preprint arXiv:2110.14160},
+  year={2021}
+}
+```
 
