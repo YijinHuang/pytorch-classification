@@ -78,11 +78,6 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 avg_acc = estimator.get_accuracy(6)
                 avg_kappa = estimator.get_kappa(6)
 
-                # visualize samples
-                if cfg.train.sample_view and step % cfg.train.sample_view_interval == 0:
-                    samples = torchvision.utils.make_grid(X)
-                    samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
-                    logger.add_image('input samples', samples, 0, dataformats='CHW')
 
                 message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
                         .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
@@ -91,6 +86,11 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
             
         if is_main(cfg) and not cfg.base.progress:
             print(message)
+
+        if is_main(cfg) and cfg.train.sample_view:
+            samples = torchvision.utils.make_grid(X)
+            samples = inverse_normalize(samples, cfg.data.mean, cfg.data.std)
+            logger.add_image('input samples', samples, epoch, dataformats='CHW')
 
         # validation performance
         if epoch % cfg.train.eval_interval == 0:

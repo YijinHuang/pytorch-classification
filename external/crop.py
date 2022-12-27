@@ -1,29 +1,37 @@
-# this file built on solution from kaggle team o_O: https://github.com/sveitser/kaggle_diabetic
+# ==========================================================================
+# Base on https://github.com/sveitser/kaggle_diabetic/blob/master/convert.py
+# ==========================================================================
 import os
+import argparse
 import numpy as np
 from tqdm import tqdm
 from PIL import Image, ImageFilter
 from multiprocessing import Process
 
 
-src = 'path/to/your/dataset/folder'
-tgt = 'path/to/your/processed_dataset/folder'
+parser = argparse.ArgumentParser()
+parser.add_argument('--image-folder', type=str, help='path to image folder')
+parser.add_argument('--output-folder', type=str, help='path to output folder')
+parser.add_argument('--crop-size', type=int, default=512, help='crop size of image')
+parser.add_argument('-n', '--num-processes', type=int, default=8, help='number of processes to use')
 
 
 def main():
+    args = parser.parse_args()
     jobs = []
-    for root, _, imgs in os.walk(src):
+    for root, _, imgs in os.walk(args.image_folder):
         for img in tqdm(imgs):
             src_path = os.path.join(root, img)
-            tgt_dir = root.replace(src, tgt)
+            subfolder = root.replace(args.image_folder, '')
+            tgt_dir = os.path.join(args.output_folder, subfolder)
             if not os.path.exists(tgt_dir):
                 os.makedirs(tgt_dir)
             tgt_path = os.path.join(tgt_dir, img)
-            jobs.append((src_path, tgt_path, 512))
+            jobs.append((src_path, tgt_path, args.crop_size))
 
     procs = []
-    job_size = len(jobs) // 8
-    for i in range(8):
+    job_size = len(jobs) // args.num_processes
+    for i in range(args.num_processes):
         if i < 7:
             procs.append(Process(target=convert_list, args=(i, jobs[i * job_size:(i + 1) * job_size])))
         else:
@@ -85,14 +93,6 @@ def square_bbox(img):
     right = min(w - (w - h) // 2, w)
     lower = h
     return (left, upper, right, lower)
-
-
-def convert_square(fname, crop_size):
-    img = Image.open(fname)
-    bbox = square_bbox(img)
-    cropped = img.crop(bbox)
-    # resized = img.resize([crop_size, crop_size])
-    return cropped
 
 
 def get_convert_fname(fname, extension, directory, convert_directory):
