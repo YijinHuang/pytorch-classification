@@ -19,11 +19,10 @@
 
 ## Installation
 
-Recommended environment:
-- python 3.8
-- pytorch 1.7.1
-- torchvision 0.8.2
-- timm 0.5.4
+Requirements:
+- pytorch
+- torchvision
+- timm
 - tqdm
 - munch
 - packaging
