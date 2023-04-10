@@ -2,8 +2,11 @@
 # Base on https://github.com/sveitser/kaggle_diabetic/blob/master/convert.py
 # ==========================================================================
 import os
+import random
 import argparse
 import numpy as np
+
+from pathlib import Path
 from tqdm import tqdm
 from PIL import Image, ImageFilter
 from multiprocessing import Process
@@ -18,21 +21,26 @@ parser.add_argument('-n', '--num-processes', type=int, default=8, help='number o
 
 def main():
     args = parser.parse_args()
+    image_folder = Path(args.image_folder)
+    output_folder = Path(args.output_folder)
+
     jobs = []
     for root, _, imgs in os.walk(args.image_folder):
+        root = Path(root)
+        subfolders = root.relative_to(image_folder)
+        output_folder = output_folder.joinpath(subfolders)
+        output_folder.mkdir(parents=True, exist_ok=True)
+
         for img in tqdm(imgs):
-            src_path = os.path.join(root, img)
-            subfolder = root.replace(args.image_folder, '')
-            tgt_dir = os.path.join(args.output_folder, subfolder)
-            if not os.path.exists(tgt_dir):
-                os.makedirs(tgt_dir)
-            tgt_path = os.path.join(tgt_dir, img)
+            src_path = root.joinpath(img)
+            tgt_path = output_folder.joinpath(img)
             jobs.append((src_path, tgt_path, args.crop_size))
+    random.shuffle(jobs)
 
     procs = []
     job_size = len(jobs) // args.num_processes
     for i in range(args.num_processes):
-        if i < 7:
+        if i < args.num_processes - 1:
             procs.append(Process(target=convert_list, args=(i, jobs[i * job_size:(i + 1) * job_size])))
         else:
             procs.append(Process(target=convert_list, args=(i, jobs[i * job_size:])))
@@ -93,21 +101,6 @@ def square_bbox(img):
     right = min(w - (w - h) // 2, w)
     lower = h
     return (left, upper, right, lower)
-
-
-def get_convert_fname(fname, extension, directory, convert_directory):
-    return fname.replace('JPG', extension).replace(directory,
-                                                   convert_directory)
-
-
-def process(args):
-    fun, arg = args
-    directory, convert_directory, fname, crop_size, extension = arg
-    convert_fname = get_convert_fname(fname, extension, directory,
-                                      convert_directory)
-    if not os.path.exists(convert_fname):
-        img = fun(fname, crop_size)
-        save(img, convert_fname)
 
 
 def save(img, fname):

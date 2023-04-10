@@ -13,7 +13,7 @@
 - Different learning rate schedulers and warmup support
 - Data augmentation
 - Multiple GPUs support (DDP mode)
-- ViT support
+- ViTs support
 
 
 
@@ -129,26 +129,11 @@ $ tensorborad --logdir=/path/to/your/log --port=6006
 
 ### Diabetic Retinopathy Detection
 
-The codes for the following paper are integrated into this repository.
+This repository contains codes for the following papers. Instructions can be found [here](https://github.com/YijinHuang/pytorch-classification/tree/master/fundus).
 
 > Huang, Y., Lin, L., Cheng, P., Lyu, J. and Tang, X., 2021. Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation. *arXiv preprint arXiv:2110.14160*. [[link](https://arxiv.org/abs/2110.14160)]
 
-### Usage
-
-1. Download EyePACS dataset [[link](https://www.kaggle.com/c/diabetic-retinopathy-detection/data)] and organize the folder to Folder-form as mention above. Then use `external/crop.py` to remove the black border of images and resize them to 512 x 512.
-
-2. Update the dataset path in the `configs/eyepacs.yaml`. Then running the code using it as the configuration file:
-
-```shell
-$ CUDA_VISIBLE_DEVICES=x python main.py -c ./configs/eyepacs.yaml
-```
-
-3. The features from the trained model are fed into the pair fusion part. The code for the pair fusion will be updated soon.
-
-### Acknowledge
-
-We greatly thanks the reviews of MIDL 2022 for improving this work.
-
+> Huang, Y., Lin, L., Cheng, P., Lyu, J. and Tang, X., 2021. Lesion-based contrastive learning for diabetic retinopathy grading from fundus images. In Medical Image Computing and Computer Assisted Intervention–MICCAI 2021: 24th International Conference, Strasbourg, France, September 27–October 1, 2021, Proceedings, Part II 24 (pp. 113-123). Springer International Publishing. [[link](https://arxiv.org/pdf/2107.08274.pdf)]
 
 
 ## Citation

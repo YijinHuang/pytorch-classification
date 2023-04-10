@@ -23,6 +23,12 @@ def parse_config():
         help='Path to the config file.'
     )
     parser.add_argument(
+        '-overwrite',
+        action='store_true',
+        default=False,
+        help='Overwrite file in the save path.'
+    )
+    parser.add_argument(
         '-print_config',
         action='store_true',
         default=False,

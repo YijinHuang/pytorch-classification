@@ -1,0 +1,8 @@
+munch==2.5.0
+PyYAML==5.4.1
+tensorboard==2.9.1
+torch==1.7.1
+torchvision==0.8.2
+tqdm==4.50.2
+packaging==21.0
+timm==0.5.4

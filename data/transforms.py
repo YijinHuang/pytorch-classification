@@ -42,7 +42,7 @@ def data_transforms(cfg):
             transforms.RandomAffine(
                 degrees=0,
                 translate=aug_args.translation.range,
-                fillcolor=aug_args.value_fill
+                fill=aug_args.value_fill
             ),
             p=aug_args.translation.prob
         ),
