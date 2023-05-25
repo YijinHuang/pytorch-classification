@@ -130,7 +130,7 @@ $ tensorborad --logdir=/path/to/your/log --port=6006
 
 This repository contains codes for the following papers. Instructions can be found [here](https://github.com/YijinHuang/pytorch-classification/tree/master/fundus).
 
-> Huang, Y., Lin, L., Cheng, P., Lyu, J. and Tang, X., 2021. Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation. *arXiv preprint arXiv:2110.14160*. [[link](https://arxiv.org/abs/2110.14160)]
+> Huang, Y., Lin, L., Cheng, P., Lyu, J., Tam, R. and Tang, X., 2023. Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation. Diagnostics, 13(10), p.1664. [[link](https://www.mdpi.com/2075-4418/13/10/1664)]
 
 > Huang, Y., Lin, L., Cheng, P., Lyu, J. and Tang, X., 2021. Lesion-based contrastive learning for diabetic retinopathy grading from fundus images. In Medical Image Computing and Computer Assisted Intervention–MICCAI 2021: 24th International Conference, Strasbourg, France, September 27–October 1, 2021, Proceedings, Part II 24 (pp. 113-123). Springer International Publishing. [[link](https://arxiv.org/pdf/2107.08274.pdf)]
 
@@ -140,11 +140,15 @@ This repository contains codes for the following papers. Instructions can be fou
 If you find this repository useful, please cite the paper: 
 
 ```
-@article{huang2021identifying,
+@article{huang2023identifying,
   title={Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation},
-  author={Huang, Yijin and Lin, Li and Cheng, Pujin and Lyu, Junyan and Tang, Xiaoying},
-  journal={arXiv preprint arXiv:2110.14160},
-  year={2021}
+  author={Huang, Yijin and Lin, Li and Cheng, Pujin and Lyu, Junyan and Tam, Roger and Tang, Xiaoying},
+  journal={Diagnostics},
+  volume={13},
+  number={10},
+  pages={1664},
+  year={2023},
+  publisher={MDPI}
 }
 ```
 

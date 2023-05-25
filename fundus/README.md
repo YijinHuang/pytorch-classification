@@ -1,7 +1,6 @@
 # Diabetic Retinopathy
 
-We provide a strong, standardized, and scalable CNN baseline for DR grading. Details can be found [here](https://arxiv.org/abs/2110.14160). 
-
+We provide a strong, standardized, and scalable CNN baseline for DR grading. Details can be found [here](https://www.mdpi.com/2075-4418/13/10/1664). 
 
 ## Recommended environment for reproduction
 To reproduce the experimental results in the paper, the following environments are recommended.
@@ -59,10 +58,14 @@ We greatly thanks the reviewers of this paper for improving this work.
 If you find this repository useful, please cite the paper: 
 
 ```
-@article{huang2021identifying,
+@article{huang2023identifying,
   title={Identifying the key components in ResNet-50 for diabetic retinopathy grading from fundus images: a systematic investigation},
-  author={Huang, Yijin and Lin, Li and Cheng, Pujin and Lyu, Junyan and Tang, Xiaoying},
-  journal={arXiv preprint arXiv:2110.14160},
-  year={2021}
+  author={Huang, Yijin and Lin, Li and Cheng, Pujin and Lyu, Junyan and Tam, Roger and Tang, Xiaoying},
+  journal={Diagnostics},
+  volume={13},
+  number={10},
+  pages={1664},
+  year={2023},
+  publisher={MDPI}
 }
 ```
