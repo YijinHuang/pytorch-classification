@@ -26,7 +26,11 @@ trial_code_directory: ..
 
 trial_gpu_number: 1 # number of gpus to run a trial
 trial_concurrency: 1 # number of trials to run experiments concurrently
+
+# Set max_trial_number to limit number of trial or max_experiment_duration to limit running time.
+# If neither max_trial_number nor max_experiment_duration are set, the experiment will run forever until you stop it.
 max_trial_number: 100 # number of trials to run in total
+# max_experiment_duration: 1h # max duration of the experiment.
 
 tuner:
   name: TPE

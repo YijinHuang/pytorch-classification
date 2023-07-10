@@ -1,8 +1,7 @@
 base:
   data_path: /path/to/your/dataset
   data_index: null # alternative way to build dataset. check README for more details
-  save_path: /path/to/save/folder
-  log_path: /path/to/save/log/folder
+  save_path: ./run/experiment # path to save
   device: cuda
   random_seed: 0 # set to -1 to disable random seed
   cudnn_deterministic: False # set to True to turn on CUDNN deterministic setting, but it may slow down your training

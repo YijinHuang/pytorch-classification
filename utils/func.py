@@ -175,9 +175,9 @@ def is_main(cfg):
 def config_check(cfg):
     warning = None
     if cfg.scheduler_args.cosine.T_max != cfg.train.epochs & cfg.config_check.cosine_decay_epochs:
-        cfg.scheduler_args.cosine.T_max = cfg.train.epochs
-        warning = 'The max epoch of cosine decay scheduler is set to be the number of training epochs, ' \
-                  'because they are commonly the same. If you want to set the max epoch of cosine decay scheduler manually, please set config_check.cosine_decay_epochs in the config file to False.'
+        cfg.scheduler_args.cosine.T_max = cfg.train.epochs - cfg.train.warmup_epochs
+        warning = 'The max epoch of cosine decay scheduler is set to be the number of training epochs after warmup, because they are commonly the same. ' \
+                  'If you want to set the max epoch of cosine decay scheduler manually, please set config_check.cosine_decay_epochs in the config file to False.'
         print_msg(warning, warning=True)
 
 
@@ -213,3 +213,12 @@ def get_terminal_col():
         return os.get_terminal_size().columns
     except OSError:
         return 80
+
+
+def add_path_suffix(path):
+    suffix = 0
+    new_path = path
+    while os.path.exists(new_path):
+        suffix += 1
+        new_path = path + '_{}'.format(suffix)
+    return new_path

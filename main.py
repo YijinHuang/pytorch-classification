@@ -39,13 +39,14 @@ def main():
     save_path = cfg.base.save_path
     if os.path.exists(save_path):
         if cfg.base.overwrite:
-            print('Save path {} exists and will be overwrited.'.format(save_path))
+            print_msg('Save path {} exists and will be overwrited.'.format(save_path), warning=True)
         else:
-            warning = 'Save path {} exists.\nDo you want to overwrite it? (y/n)\n'.format(save_path)
-            if not input(warning) == 'y':
-                sys.exit(0)
-    else:
-        os.makedirs(save_path)
+            new_save_path = add_path_suffix(save_path)
+            cfg.base.save_path = new_save_path
+            warning = 'Save path {} exists. New save path is set to be {}.'.format(save_path, new_save_path)
+            print_msg(warning, warning=True)
+
+    os.makedirs(cfg.base.save_path, exist_ok=True)
     copy_config(args.config, cfg.base.save_path)
 
     if cfg.dist.distributed:
@@ -90,7 +91,8 @@ def worker(gpu, n_gpus, cfg):
         seed = cfg.base.random_seed + cfg.dist.rank # different seed for different process if distributed
         set_random_seed(seed, cfg.base.cudnn_deterministic)
 
-    logger = SummaryWriter(cfg.base.log_path) if is_main(cfg) else None
+    log_path = os.path.join(cfg.base.save_path, 'log')
+    logger = SummaryWriter(log_path) if is_main(cfg) else None
 
     # train
     model = generate_model(cfg)
