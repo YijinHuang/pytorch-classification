@@ -8,7 +8,8 @@ import argparse
 import torch.nn as nn
 
 from tqdm import tqdm
-from munch import munchify
+from operator import getitem
+from functools import reduce
 from torch.utils.data import DataLoader
 
 from utils.const import regression_loss
@@ -23,12 +24,6 @@ def parse_config():
         help='Path to the config file.'
     )
     parser.add_argument(
-        '-overwrite',
-        action='store_true',
-        default=False,
-        help='Overwrite file in the save path.'
-    )
-    parser.add_argument(
         '-print_config',
         action='store_true',
         default=False,
@@ -41,7 +36,7 @@ def parse_config():
 def load_config(path):
     with open(path, 'r') as file:
         cfg = yaml.load(file, Loader=yaml.FullLoader)
-    return munchify(cfg)
+    return cfg
 
 
 def copy_config(src, dst):
@@ -92,13 +87,18 @@ def save_weights(model, save_path):
     torch.save(state_dict, save_path)
 
 
-def print_msg(msg, appendixs=[]):
+def print_msg(msg, appendixs=[], warning=False):
+    color = '\033[93m'
+    end = '\033[0m'
+    print_fn = lambda x: print(color + x + end) if warning else print
+
     max_len = len(max([msg, *appendixs], key=len))
-    print('=' * max_len)
-    print(msg)
+    max_len = min(max_len, get_terminal_col())
+    print_fn('=' * max_len)
+    print_fn(msg)
     for appendix in appendixs:
-        print(appendix)
-    print('=' * max_len)
+        print_fn(appendix)
+    print_fn('=' * max_len)
 
 
 def print_config(configs):
@@ -170,3 +170,46 @@ def exit_with_error(msg):
 
 def is_main(cfg):
     return (not cfg.dist.distributed) or cfg.dist.rank == 0
+
+
+def config_check(cfg):
+    warning = None
+    if cfg.scheduler_args.cosine.T_max != cfg.train.epochs & cfg.config_check.cosine_decay_epochs:
+        cfg.scheduler_args.cosine.T_max = cfg.train.epochs
+        warning = 'The max epoch of cosine decay scheduler is set to be the number of training epochs, ' \
+                  'because they are commonly the same. If you want to set the max epoch of cosine decay scheduler manually, please set config_check.cosine_decay_epochs in the config file to False.'
+        print_msg(warning, warning=True)
+
+
+def config_update(cfg, params):
+    keys = get_all_keys(cfg)
+    name2key = {key[-1]: key for key in keys}
+    names = list(name2key.keys())
+    for key, value in params.items():
+        if key not in names:
+            raise KeyError('Invalid key: {}'.format(key))
+        if names.count(key) > 1:
+            raise KeyError('Key {} appears more than once, can not be updated'.format(key))
+        ks = name2key[key]
+        get_by_path(cfg, ks[:-1])[ks[-1]] = value
+
+
+def get_by_path(d, path):
+    return reduce(getitem, path, d)
+
+
+def get_all_keys(cfg):
+    keys = []
+    for key, value in cfg.items():
+        if isinstance(value, dict):
+            keys += [[key] + subkey for subkey in get_all_keys(value)]
+        else:
+            keys.append([key])
+    return keys
+
+
+def get_terminal_col():
+    try:
+        return os.get_terminal_size().columns
+    except OSError:
+        return 80

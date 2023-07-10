@@ -14,6 +14,9 @@ from modules.scheduler import *
 
 
 def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
+    if cfg.base.HPO:
+        from nni import report_intermediate_result, report_final_result
+
     device = cfg.base.device
     optimizer = initialize_optimizer(cfg, model)
     train_sampler, val_sampler = initialize_sampler(cfg, train_dataset, val_dataset)
@@ -78,7 +81,6 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 avg_acc = estimator.get_accuracy(6)
                 avg_kappa = estimator.get_kappa(6)
 
-
                 message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
                         .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
                 if cfg.base.progress:
@@ -109,6 +111,9 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 max_indicator = indicator
                 print_msg('Best in validation set. Model save at {}'.format(cfg.base.save_path))
 
+        if is_main(cfg) and cfg.base.HPO:
+            report_intermediate_result(indicator)
+
         if is_main(cfg) and epoch % cfg.train.save_interval == 0:
             save_weights(model, os.path.join(cfg.base.save_path, 'epoch_{}.pt'.format(epoch)))
 
@@ -130,6 +135,9 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
     # save final model
     if is_main(cfg):
         save_weights(model, os.path.join(cfg.base.save_path, 'final_weights.pt'))
+
+    if is_main(cfg) and cfg.base.HPO:
+        report_final_result(indicator)
 
     if is_main(cfg) and logger:
         logger.close()
@@ -186,7 +194,6 @@ def eval(cfg, model, dataloader, criterion, estimator, device):
 
 # define weighted_sampler
 def initialize_sampler(cfg, train_dataset, val_dataset):
-    sampler = None
     sampling_strategy = cfg.data.sampling_strategy
 
     if cfg.dist.distributed:

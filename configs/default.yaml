@@ -8,6 +8,7 @@ base:
   cudnn_deterministic: False # set to True to turn on CUDNN deterministic setting, but it may slow down your training
   overwrite: false # overwrite save_path
   progress: true # real-time metric display, output cannot be redirected
+  HPO: false # hyper-parameter optimization using nni. ref: https://github.com/microsoft/nni
 
 dist:
   distributed: true # distributed data parallel (DDP) model for multiple gpus training
@@ -119,3 +120,6 @@ data_augmentation_args:
     kernel_size: 7
     sigma: 0.5
   value_fill: 0 # NOT a data augmentation operation. pixel fill value for the area outside the image
+
+config_check:
+  cosine_decay_epochs: true # check if the epoch of cosine decay is same as training epochs

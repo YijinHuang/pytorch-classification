@@ -7,6 +7,7 @@ import torch
 import numpy as np
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from munch import munchify
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.func import *
@@ -19,6 +20,10 @@ from modules.builder import generate_model
 def main():
     args = parse_config()
     cfg = load_config(args.config)
+    if cfg['base']['HPO']:
+        hyperparameter_tuning(cfg)
+    cfg = munchify(cfg)
+    config_check(cfg)
 
     # print configuration
     if args.print_config:
@@ -43,14 +48,12 @@ def main():
         os.makedirs(save_path)
     copy_config(args.config, cfg.base.save_path)
 
-    n_gpus = cfg.dist.n_gpus if cfg.dist.n_gpus else torch.cuda.device_count()
-    if n_gpus <= 1:
-        cfg.dist.distributed = False
-        print_msg('SINGLE GPU MODE')
-    else:
-        cfg.dist.distributed = True
+    if cfg.dist.distributed:
         print_msg('DISTRIBUTED GPU MODE')
+    else:
+        print_msg('SINGLE GPU MODE')
 
+    n_gpus = cfg.dist.n_gpus if cfg.dist.n_gpus else torch.cuda.device_count()
     if cfg.dist.distributed:
         cfg.dist.world_size = n_gpus * cfg.dist.nodes
         os.environ['MASTER_ADDR'] = cfg.dist.addr
@@ -124,6 +127,13 @@ def set_random_seed(seed, deterministic=False):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = deterministic
+
+
+def hyperparameter_tuning(cfg):
+    import nni
+    params = nni.get_next_parameter()
+    config_update(cfg, params)
+    print_msg('Hyper-parameters optimization mode.', appendixs=params.keys())
 
 
 if __name__ == '__main__':

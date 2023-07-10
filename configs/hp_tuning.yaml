@@ -1,0 +1,38 @@
+search_space:
+  weight_decay:
+    _type: uniform
+    _value: [0.00001, 0.01]
+  learning_rate:
+    _type: loguniform
+    _value: [0.00001, 0.01]
+  momentum:
+    _type: uniform
+    _value: [0.5, 1]
+  batch_size:
+    _type: choice
+    _value: [16, 32]
+  epochs:
+    _type: choice
+    _value: [20, 25, 30]
+  warmup_epochs:
+    _type: randint
+    _value: [0, 6]
+  optimizer:
+    _type: choice
+    _value: ['SGD', 'ADAM']
+
+trial_command: python main.py -c ./configs/eyepacs.yaml
+trial_code_directory: ..
+
+trial_gpu_number: 1 # number of gpus to run a trial
+trial_concurrency: 1 # number of trials to run experiments concurrently
+max_trial_number: 100 # number of trials to run in total
+
+tuner:
+  name: TPE
+  class_args:
+    optimize_mode: maximize
+
+training_service:
+  platform: local
+  use_active_gpu: True
