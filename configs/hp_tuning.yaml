@@ -21,7 +21,7 @@ search_space:
     _type: choice
     _value: ['SGD', 'ADAM']
 
-trial_command: python main.py -c ./configs/eyepacs.yaml
+trial_command: python main.py -p -c ./configs/default.yaml
 trial_code_directory: ..
 
 trial_gpu_number: 1 # number of gpus to run a trial
@@ -39,4 +39,5 @@ tuner:
 
 training_service:
   platform: local
-  use_active_gpu: True
+  use_active_gpu: true
+  gpu_indices: 0 # specify gpu indices to use, e.g., 0,1,2,3
