@@ -1,5 +1,5 @@
 base:
-  data_path: /data/yijin/workspace/dataset/split_paired_IMAGES
+  data_path: /path/to/your/dataset
   data_index: null # alternative way to build dataset. check README for more details
   save_path: ./run/experiment # path to save
   device: cuda

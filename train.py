@@ -82,13 +82,17 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
                 message = 'epoch: [{} / {}], loss: {:.6f}'.format(epoch, cfg.train.epochs, avg_loss)
                 if cfg.base.progress:
                     progress.set_description(message)
-            
+
         if is_main(cfg) and not cfg.base.progress:
             print(message)
 
+        if is_main(cfg):
+            train_scores = estimator.get_scores(4)
+            scores_txt = ', '.join(['{}: {}'.format(metric, score) for metric, score in train_scores.items()])
+            print('Training metrics:', scores_txt)
+
         curr_lr = optimizer.param_groups[0]['lr']
         if is_main(cfg) and logger:
-            train_scores = estimator.get_scores(4)
             for metric, score in train_scores.items():
                 logger.add_scalar('training {}'.format(metric), score, epoch)
             logger.add_scalar('training loss', avg_loss, epoch)
