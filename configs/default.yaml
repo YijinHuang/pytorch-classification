@@ -39,14 +39,15 @@ train:
   backend: timm # network builder backend (timm or torchvision)
   pretrained: true # load weights from pre-trained model training on ImageNet
   checkpoint: null # load weights from other pretrained model
-  epochs: 50
+  epochs: &epochs 50
   batch_size: 32
   num_workers: 8 # number of cpus used to load data at each step
   criterion: cross_entropy # available criterions are list in 'criterion_args' below
   loss_weight: null # null / balance / dynamic / list with shape num_classes. Weights for loss function. Don't use it with weighted sampling!
   loss_weight_decay_rate: 0 # if loss_weights is dynamic, loss weight will decay from balance to equivalent weights
   warmup_epochs: 0 # set to 0 to disable warmup
-  kappa_prior: false # save model with higher kappa or higher accuracy in validation set
+  metrics: [acc, f1, auc, precision, recall, kappa] # available metrics are list in utils.metrics
+  indicator: kappa # indicator for best model selection in validation set
   save_interval: 5 # the epoch interval of saving model
   eval_interval: 1 # the epoch interval of evaluating model on val dataset
   sample_view: false # save and visualize a batch of images on Tensorboard
@@ -79,7 +80,7 @@ scheduler_args:
     milestones: [15, 25, 45]
     gamma: 0.1 # multiplicative factor of learning rate decay
   cosine:
-    T_max: 50 # maximum number of iterations
+    T_max: *epochs # maximum number of iterations
     eta_min: 0 # minimum learning rate
   reduce_on_plateau:
     mode: min
@@ -88,7 +89,7 @@ scheduler_args:
     threshold: 0.0001 # threshold for measuring the new optimum
     eps: 0.00001 # minimal decay applied to learning rate
   clipped_cosine:
-    T_max: 50
+    T_max: *epochs
     min_lr: 0.0001
 
 data_augmentation_args:

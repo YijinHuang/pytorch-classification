@@ -26,8 +26,8 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
 
     # start training
     model.train()
+    avg_loss = 0
     max_indicator = 0
-    avg_loss, avg_acc, avg_kappa = 0, 0, 0
     for epoch in range(1, cfg.train.epochs + 1):
         # resampling weight update
         if cfg.dist.distributed:
@@ -46,7 +46,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
 
         epoch_loss = 0
         estimator.reset()
-        progress = tqdm(enumerate(train_loader)) if cfg.base.progress else enumerate(train_loader)
+        progress = tqdm(enumerate(train_loader), total=len(train_loader)) if cfg.base.progress else enumerate(train_loader)
         for step, train_data in progress:
             X, y = train_data
             X = X.cuda(cfg.dist.gpu) if cfg.dist.distributed else X.to(device)
@@ -77,17 +77,22 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
             if is_main(cfg):
                 epoch_loss += loss.item()
                 avg_loss = epoch_loss / (step + 1)
-                estimator.update(y_pred, y)
-                avg_acc = estimator.get_accuracy(6)
-                avg_kappa = estimator.get_kappa(6)
 
-                message = 'epoch: [{} / {}], loss: {:.6f}, acc: {:.4f}, kappa: {:.4f}'\
-                        .format(epoch, cfg.train.epochs, avg_loss, avg_acc, avg_kappa)
+                estimator.update(y_pred, y)
+                message = 'epoch: [{} / {}], loss: {:.6f}'.format(epoch, cfg.train.epochs, avg_loss)
                 if cfg.base.progress:
                     progress.set_description(message)
             
         if is_main(cfg) and not cfg.base.progress:
             print(message)
+
+        curr_lr = optimizer.param_groups[0]['lr']
+        if is_main(cfg) and logger:
+            train_scores = estimator.get_scores(4)
+            for metric, score in train_scores.items():
+                logger.add_scalar('training {}'.format(metric), score, epoch)
+            logger.add_scalar('training loss', avg_loss, epoch)
+            logger.add_scalar('learning rate', curr_lr, epoch)
 
         if is_main(cfg) and cfg.train.sample_view:
             samples = torchvision.utils.make_grid(X)
@@ -97,19 +102,19 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
         # validation performance
         if epoch % cfg.train.eval_interval == 0:
             eval(cfg, model, val_loader, cfg.train.criterion, estimator, device)
-            acc = estimator.get_accuracy(6)
-            kappa = estimator.get_kappa(6)
-            print('validation accuracy: {}, kappa: {}'.format(acc, kappa))
+            val_scores = estimator.get_scores(6)
+            scores_txt = ['{}: {}'.format(metric, score) for metric, score in val_scores.items()]
+            print_msg('Validation metrics:', scores_txt)
             if is_main(cfg) and logger:
-                logger.add_scalar('validation accuracy', acc, epoch)
-                logger.add_scalar('validation kappa', kappa, epoch)
+                for metric, score in val_scores.items():
+                    logger.add_scalar('validation {}'.format(metric), score, epoch)
 
             # save model
-            indicator = kappa if cfg.train.kappa_prior else acc
+            indicator = val_scores[cfg.train.indicator]
             if is_main(cfg) and indicator > max_indicator:
                 save_weights(model, os.path.join(cfg.base.save_path, 'best_validation_weights.pt'))
                 max_indicator = indicator
-                print_msg('Best in validation set. Model save at {}'.format(cfg.base.save_path))
+                print_msg('Best {} in validation set. Model save at {}'.format(cfg.train.indicator, cfg.base.save_path))
 
         if is_main(cfg) and cfg.base.HPO:
             report_intermediate_result(indicator)
@@ -118,19 +123,11 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
             save_weights(model, os.path.join(cfg.base.save_path, 'epoch_{}.pt'.format(epoch)))
 
         # update learning rate
-        curr_lr = optimizer.param_groups[0]['lr']
         if lr_scheduler and (not warmup_scheduler or warmup_scheduler.is_finish()):
             if cfg.solver.lr_scheduler == 'reduce_on_plateau':
                 lr_scheduler.step(avg_loss)
             else:
                 lr_scheduler.step()
-
-        # record
-        if is_main(cfg) and logger:
-            logger.add_scalar('training loss', avg_loss, epoch)
-            logger.add_scalar('training accuracy', avg_acc, epoch)
-            logger.add_scalar('training kappa', avg_kappa, epoch)
-            logger.add_scalar('learning rate', curr_lr, epoch)
 
     # save final model
     if is_main(cfg):
@@ -158,11 +155,12 @@ def evaluate(cfg, model, test_dataset, estimator):
     eval(cfg, model, test_loader, cfg.train.criterion, estimator, cfg.base.device)
 
     if is_main(cfg):
-        print('========================================')
-        print('Finished! test acc: {}'.format(estimator.get_accuracy(6)))
+        print('================Finished================')
+        test_scores = estimator.get_scores(6)
+        for metric, score in test_scores.items():
+            print('{}: {}'.format(metric, score))
         print('Confusion Matrix:')
-        print(estimator.conf_mat)
-        print('quadratic kappa: {}'.format(estimator.get_kappa(6)))
+        print(estimator.get_conf_mat())
         print('========================================')
 
 

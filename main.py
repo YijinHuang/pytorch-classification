@@ -23,7 +23,6 @@ def main():
     if cfg['base']['HPO']:
         hyperparameter_tuning(cfg)
     cfg = munchify(cfg)
-    config_check(cfg)
 
     # print configuration
     if args.print_config:
@@ -97,7 +96,7 @@ def worker(gpu, n_gpus, cfg):
     # train
     model = generate_model(cfg)
     train_dataset, test_dataset, val_dataset = generate_dataset(cfg)
-    estimator = Estimator(cfg.train.criterion, cfg.data.num_classes)
+    estimator = Estimator(cfg.train.metrics, cfg.data.num_classes, cfg.train.criterion)
     train(
         cfg=cfg,
         model=model,

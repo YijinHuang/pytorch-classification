@@ -9,7 +9,7 @@
 - Easy to configure (model, hyperparameters)
 - Training progress monitoring and visualization
 - Weighted sampling / weighted loss / kappa loss / focal loss for imbalance dataset
-- Kappa metric for evaluating model on imbalance dataset
+- Multiple metrics for evaluating model
 - Different learning rate schedulers and warmup support
 - Data augmentation
 - Multiple GPUs support (DDP mode)
@@ -23,6 +23,7 @@
 Requirements:
 - pytorch
 - torchvision
+- torcheval
 - timm
 - tqdm
 - munch

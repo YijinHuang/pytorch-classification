@@ -90,7 +90,7 @@ def save_weights(model, save_path):
 def print_msg(msg, appendixs=[], warning=False):
     color = '\033[93m'
     end = '\033[0m'
-    print_fn = lambda x: print(color + x + end) if warning else print
+    print_fn = (lambda x: print(color + x + end)) if warning else print
 
     max_len = len(max([msg, *appendixs], key=len))
     max_len = min(max_len, get_terminal_col())
@@ -170,15 +170,6 @@ def exit_with_error(msg):
 
 def is_main(cfg):
     return (not cfg.dist.distributed) or cfg.dist.rank == 0
-
-
-def config_check(cfg):
-    warning = None
-    if cfg.scheduler_args.cosine.T_max != cfg.train.epochs & cfg.config_check.cosine_decay_epochs:
-        cfg.scheduler_args.cosine.T_max = cfg.train.epochs - cfg.train.warmup_epochs
-        warning = 'The max epoch of cosine decay scheduler is set to be the number of training epochs after warmup, because they are commonly the same. ' \
-                  'If you want to set the max epoch of cosine decay scheduler manually, please set config_check.cosine_decay_epochs in the config file to False.'
-        print_msg(warning, warning=True)
 
 
 def config_update(cfg, params):
