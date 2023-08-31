@@ -26,6 +26,7 @@ $ pip install -r fundus_requirements.txt
 
 ## Usage
 
+### Training with single-eye images
 1. Download EyePACS dataset [[link](https://www.kaggle.com/c/diabetic-retinopathy-detection/data)] and organize the folder to Folder-form as mention above.
 
 2. Preprocessing code for EyePACS dataset. This code remove the black border of fundus images and resize them to 512 x 512.
@@ -41,7 +42,43 @@ Here, `-n` is the number of workers. The processed dataset will be saved in the 
 $ CUDA_VISIBLE_DEVICES=x python main.py -c ./configs/eyepacs.yaml
 ```
 
-4. The features from the trained model are fed into the pair fusion part. The code for the pair fusion will be updated soon.
+### Training with paired-eye images. (Optional)
+In the EyePACS dataset, both the left and right eyes of a patient are provided. Concatenating the feature vectors of both eyes for classification can significantly improve the performance of DR grading by utilizing the correlation between the two eyes. Please refer the paper for more details.
+
+1. To run the pair fusion, a model trained with single-eye images is required.
+
+2. Define a dict as follows and save as a pkl file (Dict-form dataset).
+
+```python
+your_data_dict = {
+    'train': [
+        # the last item is the DR grade of the first image.
+        ('/path/to/image1_left', '/path/to/image1_right', 'DR grade of image1_left'),
+        ('/path/to/image1_right', '/path/to/image1_left', 'DR grade of image1_right'),
+        ('/path/to/image2_left', '/path/to/image2_right', 'DR grade of image2_left'),
+        ('/path/to/image2_right', '/path/to/image2_left', 'DR grade of image2_right'),
+        ...
+    ],
+    'test': [
+        ('/path/to/image3_left', '/path/to/image3_right', 'DR grade of image3_left'),
+        ('/path/to/image3_right', '/path/to/image3_left', 'DR grade of image3_right'),
+        ...
+    ],
+    'val': [
+        ('/path/to/image4_left', '/path/to/image4_right', 'DR grade of image4_left'),
+        ('/path/to/image4_right', '/path/to/image4_left', 'DR grade of image4_right'),
+        ...
+    ]
+}
+
+import pickle
+pickle.dump(your_data_dict, open('/path/to/pickle/file', 'wb'))
+```
+
+3. Run to train
+```shell
+$ CUDA_VISIBLE_DEVICES=x python fusion.py --data-index /path/to/pickle/file --encoder /path/to/trained_single_eye_model
+```
 
 
 ## Evaluate pre-trained models

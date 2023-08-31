@@ -39,7 +39,7 @@ train:
   backend: torchvision # network builder backend (timm or torchvision)
   pretrained: true # load weights from pre-trained model training on ImageNet
   checkpoint: null # load weights from other pretrained model
-  epochs: &epochs 1
+  epochs: &epochs 25
   batch_size: 16
   num_workers: 8 # number of cpus used to load data at each step
   criterion: mean_square_error # available criterions are list in 'criterion_args' below
