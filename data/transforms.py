@@ -6,11 +6,12 @@ from packaging import version
 def data_transforms(cfg):
     data_aug = cfg.data.data_augmentation
     aug_args = cfg.data_augmentation_args
+    input_size = format_input_size(cfg.data.input_size)
 
     operations = {
         'random_crop': random_apply(
             transforms.RandomResizedCrop(
-                size=(cfg.data.input_size, cfg.data.input_size),
+                size=input_size,
                 scale=aug_args.random_crop.scale,
                 ratio=aug_args.random_crop.ratio
             ),
@@ -67,7 +68,7 @@ def data_transforms(cfg):
         augmentations.append(operations[op])
 
     normalization = [
-        transforms.Resize((cfg.data.input_size, cfg.data.input_size)),
+        transforms.Resize(input_size),
         transforms.ToTensor(),
         transforms.Normalize(cfg.data.mean, cfg.data.std)
     ]
@@ -87,7 +88,17 @@ def random_apply(op, p):
 
 
 def simple_transform(input_size):
+    input_size = format_input_size(input_size)
     return transforms.Compose([
-        transforms.Resize((input_size, input_size)),
+        transforms.Resize(input_size),
         transforms.ToTensor()
     ])
+
+
+def format_input_size(input_size):
+    if isinstance(input_size, int):
+        input_size = (input_size, input_size)
+    else:
+        assert isinstance(input_size, tuple) or isinstance(input_size, list)
+        assert len(input_size) == 2
+    return input_size

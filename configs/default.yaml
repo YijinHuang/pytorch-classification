@@ -4,13 +4,13 @@ base:
   save_path: ./run/experiment # path to save
   device: cuda
   random_seed: 0 # set to -1 to disable random seed
-  cudnn_deterministic: False # set to True to turn on CUDNN deterministic setting, but it may slow down your training
+  cudnn_deterministic: false # set to True to turn on CUDNN deterministic setting, but it may slow down your training
   overwrite: false # overwrite save_path
   progress: true # real-time metric display, output cannot be redirected
   HPO: false # hyper-parameter optimization using nni. ref: https://github.com/microsoft/nni
 
 dist:
-  distributed: true # distributed data parallel (DDP) model for multiple gpus training
+  distributed: false # distributed data parallel (DDP) model for multiple gpus training
   backend: nccl # default backend for DDP
   nodes: 1 # number of nodes for distributed training 
   n_gpus: null # use all visiable gpus when n_gpus is set to null

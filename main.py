@@ -48,6 +48,10 @@ def main():
     os.makedirs(cfg.base.save_path, exist_ok=True)
     copy_config(args.config, cfg.base.save_path)
 
+    if cfg.dist.distributed and torch.cuda.device_count() <= 1:
+        print_msg('Distributed training is set to be true, but only one GPU is available. Distributed training is disabled.', warning=True)
+        cfg.dist.distributed = False
+
     if cfg.dist.distributed:
         print_msg('DISTRIBUTED GPU MODE')
     else:
