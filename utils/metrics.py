@@ -4,7 +4,7 @@ from utils.func import print_msg
 
 
 class Estimator():
-    def __init__(self, metrics, num_classes, criterion, average='macro', thresholds=None):
+    def __init__(self, metrics, num_classes, criterion, thresholds=None):
         self.criterion = criterion
         self.num_classes = num_classes
         self.thresholds = [-0.5 + i for i in range(num_classes)] if not thresholds else thresholds
@@ -14,7 +14,7 @@ class Estimator():
             print_msg('AUC is not supported for regression based metrics {}.'.format(criterion), warning=True)
 
         self.metrics = metrics
-        self.metrics_fn = {m: metrics_fn[m](num_classes=num_classes, average=average) for m in metrics}
+        self.metrics_fn = {m: metrics_fn[m](num_classes=num_classes) for m in metrics}
         self.conf_mat_fn = tm.MulticlassConfusionMatrix(num_classes=num_classes)
 
     def update(self, predictions, targets):
@@ -64,8 +64,7 @@ class Estimator():
 
 
 class QuadraticWeightedKappa():
-    def __init__(self, num_classes, average='macro'):
-        assert average == 'macro', 'Quadratic weighted kappa only supports macro average.'
+    def __init__(self, num_classes):
         self.num_classes = num_classes
         self.conf_mat = torch.zeros((self.num_classes, self.num_classes), dtype=int)
 
