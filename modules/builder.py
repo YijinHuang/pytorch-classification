@@ -16,7 +16,12 @@ def generate_model(cfg):
         else:
             weights = torch.load(cfg.train.checkpoint)
 
-        model.load_state_dict(weights, strict=True)
+        msg = model.load_state_dict(weights, strict=False)
+        if set(msg.missing_keys) == {'fc.weight', 'fc.bias'}:
+            print_msg('Pre-trained weights are loaded, but the classification layer weights are missing and will be randomly initialized for the new task.')
+        elif msg is not None:
+            raise Exception('Incompatible pre-trained weights detected. Please verify your weights or disable this error message.')
+
         print_msg('Load weights form {}'.format(cfg.train.checkpoint))
 
     if cfg.dist.distributed:
