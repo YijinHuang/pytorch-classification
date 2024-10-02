@@ -26,7 +26,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
     # start training
     model.train()
     avg_loss = 0
-    max_indicator = 0
+    max_indicator = -999
     for epoch in range(1, cfg.train.epochs + 1):
         # resampling weight update
         if cfg.dist.distributed:

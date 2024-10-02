@@ -113,13 +113,13 @@ def worker(gpu, n_gpus, cfg):
         torch.distributed.barrier()
 
     # test
-    print('This is the performance of the best validation model:')
+    print('Evaluating the best validation model...')
     checkpoint = os.path.join(cfg.base.save_path, 'best_validation_weights.pt')
     cfg.train.checkpoint = checkpoint
     model = generate_model(cfg)
     evaluate(cfg, model, test_dataset, estimator)
 
-    print('This is the performance of the final model:')
+    print('Evaluating the final model...')
     checkpoint = os.path.join(cfg.base.save_path, 'final_weights.pt')
     cfg.train.checkpoint = checkpoint
     model = generate_model(cfg)

@@ -12,15 +12,17 @@ def generate_model(cfg):
     if cfg.train.checkpoint:
         if cfg.dist.distributed:
             loc = 'cuda:{}'.format(cfg.dist.gpu)
-            weights = torch.load(cfg.train.checkpoint, map_location=loc)          
+            weights = torch.load(cfg.train.checkpoint, map_location=loc, weights_only=True)          
         else:
-            weights = torch.load(cfg.train.checkpoint)
+            weights = torch.load(cfg.train.checkpoint, weights_only=True)
 
-        msg = model.load_state_dict(weights, strict=False)
-        if set(msg.missing_keys) == {'fc.weight', 'fc.bias'}:
+        incompatible_keys = model.load_state_dict(weights, strict=False)
+        if set(incompatible_keys.missing_keys) == {'fc.weight', 'fc.bias'}:
             print_msg('Pre-trained weights are loaded, but the classification layer weights are missing and will be randomly initialized for the new task.')
-        elif msg is not None:
-            raise Exception('Incompatible pre-trained weights detected. Please verify your weights or disable this error message.')
+        elif incompatible_keys.missing_keys:
+            print_msg('Pre-trained weights are loaded, but the following keys are missing: {}'.format(incompatible_keys.missing_keys))
+        if incompatible_keys.unexpected_keys:
+            print_msg('Pre-trained weights are loaded, but the following keys are not used: {}'.format(incompatible_keys.unexpected_keys))
 
         print_msg('Load weights form {}'.format(cfg.train.checkpoint))
 
