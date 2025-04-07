@@ -14,7 +14,10 @@ class Estimator():
             print_msg('AUC is not supported for regression based metrics {}.'.format(criterion), warning=True)
 
         self.metrics = metrics
-        self.metrics_fn = {m: metrics_fn[m](num_classes=num_classes) for m in metrics}
+        self.metrics_fn = {}
+        for m in metrics:
+            metric, kargs = metrics_factory[m]
+            self.metrics_fn[m] = metric(num_classes=num_classes, **kargs)
         self.conf_mat_fn = tm.MulticlassConfusionMatrix(num_classes=num_classes)
 
     def update(self, predictions, targets):
@@ -102,13 +105,13 @@ class QuadraticWeightedKappa():
         return (observed - expected) / (1 - expected)
 
 
-metrics_fn = {
-    'acc': tm.MulticlassAccuracy,
-    'f1': tm.MulticlassF1Score,
-    'auc': tm.MulticlassAUROC,
-    'precision': tm.MulticlassPrecision,
-    'recall': tm.MulticlassRecall,
-    'kappa': QuadraticWeightedKappa
+metrics_factory = {
+    'acc': (tm.MulticlassAccuracy, dict()),
+    'f1': (tm.MulticlassF1Score, dict(average='macro')),
+    'auc': (tm.MulticlassAUROC, {}),
+    'precision': (tm.MulticlassPrecision, dict(average='macro')),
+    'recall': (tm.MulticlassRecall, dict(average='macro')),
+    'kappa': (QuadraticWeightedKappa, {}),
 }
 available_metrics = metrics_fn.keys()
 logits_required_metrics = ['auc']
