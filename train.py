@@ -137,7 +137,7 @@ def train(cfg, model, train_dataset, val_dataset, estimator, logger=None):
         save_weights(model, os.path.join(cfg.base.save_path, 'final_weights.pt'))
 
     if is_main(cfg) and cfg.base.HPO:
-        report_final_result(indicator)
+        report_final_result(max_indicator)
 
     if is_main(cfg) and logger:
         logger.close()
