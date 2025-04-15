@@ -13,11 +13,14 @@ class Estimator():
             metrics.remove('auc')
             print_msg('AUC is not supported for regression based metrics {}.'.format(criterion), warning=True)
 
+        self.task = 'binary' if num_classes == 2 else 'multi_class'
         self.metrics = metrics
         self.metrics_fn = {}
         for m in metrics:
-            metric, kargs = metrics_factory[m]
-            self.metrics_fn[m] = metric(num_classes=num_classes, **kargs)
+            metric, kargs = metrics_factory[m][self.task]
+            if self.task == 'multi_class':
+                kargs['num_classes'] = num_classes
+            self.metrics_fn[m] = metric(**kargs)
         self.conf_mat_fn = tm.MulticlassConfusionMatrix(num_classes=num_classes)
 
     def update(self, predictions, targets):
@@ -29,6 +32,7 @@ class Estimator():
         self.conf_mat_fn.update(predictions, targets)
         for m in self.metrics_fn.keys():
             if m in logits_required_metrics:
+                logits = logits if self.task == 'multi_class' else logits[:, 1]
                 self.metrics_fn[m].update(logits, targets)
             else:
                 self.metrics_fn[m].update(predictions, targets)
@@ -67,7 +71,7 @@ class Estimator():
 
 
 class QuadraticWeightedKappa():
-    def __init__(self, num_classes):
+    def __init__(self, num_classes=2):
         self.num_classes = num_classes
         self.conf_mat = torch.zeros((self.num_classes, self.num_classes), dtype=int)
 
@@ -106,12 +110,30 @@ class QuadraticWeightedKappa():
 
 
 metrics_factory = {
-    'acc': (tm.MulticlassAccuracy, dict()),
-    'f1': (tm.MulticlassF1Score, dict(average='macro')),
-    'auc': (tm.MulticlassAUROC, {}),
-    'precision': (tm.MulticlassPrecision, dict(average='macro')),
-    'recall': (tm.MulticlassRecall, dict(average='macro')),
-    'kappa': (QuadraticWeightedKappa, {}),
+    'acc': {
+        'binary': (tm.BinaryAccuracy, dict()),
+        'multi_class': (tm.MulticlassAccuracy, dict())
+    },
+    'f1': {
+        'binary': (tm.BinaryF1Score, dict()),
+        'multi_class': (tm.MulticlassF1Score, dict(average='macro'))
+    },
+    'auc': {
+        'binary': (tm.BinaryAUROC, dict()),
+        'multi_class': (tm.MulticlassAUROC, dict())
+    },
+    'precision': {
+        'binary': (tm.BinaryPrecision, dict()),
+        'multi_class': (tm.MulticlassPrecision, dict(average='macro'))
+    },
+    'recall': {
+        'binary': (tm.BinaryRecall, dict()),
+        'multi_class': (tm.MulticlassRecall, dict(average='macro'))
+    },
+    'kappa': {
+        'binary': (QuadraticWeightedKappa, dict()),
+        'multi_class': (QuadraticWeightedKappa, dict())
+    }
 }
 available_metrics = metrics_fn.keys()
 logits_required_metrics = ['auc']
