@@ -135,6 +135,6 @@ metrics_factory = {
         'multi_class': (QuadraticWeightedKappa, dict())
     }
 }
-available_metrics = metrics_fn.keys()
+available_metrics = metrics_factory.keys()
 logits_required_metrics = ['auc']
 regression_based_metrics = ['mean_square_error', 'mean_absolute_error', 'smooth_L1']
